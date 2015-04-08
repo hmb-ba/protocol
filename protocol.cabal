@@ -22,10 +22,21 @@ library
     Kafka.Protocol.Types.Common,
     Kafka.Protocol.Types.Message,
     Kafka.Protocol.Types.Request,
-    Kafka.Protocol.Types.Response
-  -- other-modules:       
+    Kafka.Protocol.Types.Response,
+    Kafka.Protocol.Parser,
+    Kafka.Protocol.Parser.Request,
+    Kafka.Protocol.Parser.Response,
+    Kafka.Protocol.Parser.Data,
+    Kafka.Protocol.Serializer,
+    Kafka.Protocol.Serializer.Request,
+    Kafka.Protocol.Serializer.Response,
+    Kafka.Protocol.Serializer.Data
   -- other-extensions:    
   build-depends:
     base >=4.6 && <4.7,
-    bytestring >= 0.10 && < 0.11
+    bytestring >= 0.10 && < 0.11,
+    binary >=0.5 && <0.6,
+    network >= 2.4,
+    digest >= 0.0.1.2
+
   default-language:    Haskell2010
