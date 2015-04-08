@@ -18,6 +18,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:   src
   exposed-modules:
+    Kafka.Protocol,
     Kafka.Protocol.Types,
     Kafka.Protocol.Types.Common,
     Kafka.Protocol.Types.Data,
