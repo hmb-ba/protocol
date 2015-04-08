@@ -20,7 +20,7 @@ library
   exposed-modules:
     Kafka.Protocol.Types,
     Kafka.Protocol.Types.Common,
-    Kafka.Protocol.Types.Message,
+    Kafka.Protocol.Types.Data,
     Kafka.Protocol.Types.Request,
     Kafka.Protocol.Types.Response,
     Kafka.Protocol.Parser,

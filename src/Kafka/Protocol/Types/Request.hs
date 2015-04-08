@@ -20,7 +20,7 @@ module Kafka.Protocol.Types.Request
 import Data.Word
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
-import Kafka.Protocol.Types.Message
+import Kafka.Protocol.Types.Data
 import Kafka.Protocol.Types.Common
 
 type RequestSize = Word32
