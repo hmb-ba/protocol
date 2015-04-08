@@ -60,14 +60,14 @@ data Request = ProduceRequest
   }
   deriving (Show)
 
-data Topic = Topic
+data Topic = Topic --TODO: rename more request specific
   { topicNameLen    :: !TopicNameLen
   , topicName       :: !TopicName
   , numPartitions   :: !NumPartitions
   , partitions      :: [Partition]
   } deriving (Show)
 
-data Partition = Partition
+data Partition = Partition --TODO: rename more request specific
   { partitionNumber :: !PartitionNumber
   , messageSetSize  :: !MessageSetSize
   , messageSet      :: [MessageSet]
