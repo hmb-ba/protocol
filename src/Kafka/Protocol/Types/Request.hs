@@ -35,7 +35,7 @@ type Metadata = BS.ByteString
 ---------------
 
 data RequestMessage = RequestMessage
-  { rqSize     :: !RequestSize
+  { rqSize            :: !RequestSize
   , rqApiKey          :: !ApiKey
   , rqApiVersion      :: !ApiVersion
   , rqCorrelationId   :: !CorrelationId

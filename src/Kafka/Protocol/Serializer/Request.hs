@@ -1,6 +1,7 @@
 module Kafka.Protocol.Serializer.Request 
 ( 
- buildRequestMessage
+  buildRequestMessage
+, buildProduceRequestMessage
 ) where 
 
 import Data.Binary.Put
