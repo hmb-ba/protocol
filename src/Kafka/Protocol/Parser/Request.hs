@@ -10,6 +10,16 @@ import Data.Binary.Get
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL 
 
+
+parseList :: Int -> (Get a)-> Get [a]
+parseList i p = do
+  if (i < 1)
+    then return []
+    else do x <- p
+            xs <- parseList (i-1) p
+            return (x:xs)
+
+
 getMessageSets :: Int -> Get [MessageSet]
 getMessageSets i = do 
   --empty <- isEmpty 
@@ -20,44 +30,28 @@ getMessageSets i = do
             -- TODO: better Solution for messageSetLength?
             return (messageSet:messageSets)
 
-partitionParser :: Get RqPrPartition
-partitionParser = do 
+rqPrPartitionParser :: Get Partition
+rqPrPartitionParser = do 
   partitionNumber <- getWord32be
   messageSetSize <- getWord32be
   messageSet <- getMessageSets $ fromIntegral messageSetSize
   return $ RqPrPartition partitionNumber messageSetSize messageSet
 
-getPartitions :: Int -> Get [RqPrPartition]
-getPartitions i = do
-  if (i < 1)
-    then return []
-    else do partition <- partitionParser
-            partitions <- getPartitions $ i-1
-            return (partition:partitions)
+rqFtPartitionParser :: Get Partition
+rqFtPartitionParser = do
+  partitionNumber <- getWord32be
+  fetchOffset     <- getWord32be
+  maxBytes        <- getWord32be
+  return $ RqFtPartition partitionNumber fetchOffset maxBytes
 
-topicParser :: Get RqPrTopic 
-topicParser = do 
+
+topicParser :: (Get Partition) -> Get Topic 
+topicParser p = do 
   topicNameLen <- getWord16be
   topicName <- getByteString $ fromIntegral topicNameLen
   numPartitions <- getWord32be
-  partitions <- getPartitions $ fromIntegral numPartitions
-  return $ RqPrTopic topicNameLen topicName numPartitions partitions
-
-getTopics :: Int -> Get [RqPrTopic]
-getTopics i = do 
-  if (i < 1)
-    then return []
-    else do topic <- topicParser
-            topics <- getTopics $ i-1
-            return (topic:topics)
-
-produceRequestParser :: Get Request
-produceRequestParser = do 
-  requiredAcks <- getWord16be
-  timeout <- getWord32be 
-  numTopics <- getWord32be
-  topics <- getTopics $ fromIntegral numTopics
-  return $ ProduceRequest requiredAcks timeout numTopics topics
+  partitions <- parseList (fromIntegral numPartitions) p
+  return $ Topic topicNameLen topicName numPartitions partitions
 
 topicNameParser :: Get TopicName
 topicNameParser = do 
@@ -65,18 +59,20 @@ topicNameParser = do
   topicName <- getByteString $ fromIntegral topicNameLen
   return topicName
 
-getTopicNames :: Int -> Get [TopicName]
-getTopicNames i = do
-  if (i < 1)
-    then return []
-    else do topicName <- topicNameParser
-            topicNames <- getTopicNames $ i-1
-            return (topicName:topicNames)
+
+produceRequestParser :: Get Request
+produceRequestParser = do 
+  requiredAcks <- getWord16be
+  timeout <- getWord32be 
+  numTopics <- getWord32be
+  topics <- parseList (fromIntegral numTopics) (topicParser rqPrPartitionParser)
+  return $ ProduceRequest requiredAcks timeout numTopics topics
+
 
 metadataRequestParser :: Get Request
 metadataRequestParser = do 
   numTopicNames <- getWord32be
-  topics <- getTopicNames $ fromIntegral numTopicNames
+  topics <- parseList (fromIntegral numTopicNames) topicNameParser
   return $ MetadataRequest topics
 
 --fetchRequestParser :: Get Request
@@ -84,8 +80,10 @@ metadataRequestParser = do
 --  replicaId     <- getWord32be
 --  maxWaitTime   <- getWord32be
 --  minBytes      <- getWord32be
---  topicNameLen  <- getWord16be
---  topicName     <- getByteString $ fromIntegral topicNameLen
+--
+--  numTopics     <- getWord32be
+--  topics <- getTopicNames $ fromIntegral numTopics
+--
 --  partition     <- getWord32be
 --  fetchOffset   <- getWord64be
 --  maxBytes      <- getWord32be

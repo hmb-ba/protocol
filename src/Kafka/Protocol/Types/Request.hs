@@ -1,8 +1,8 @@
 module Kafka.Protocol.Types.Request
 ( RequestMessage (..)
 , Request (..)
-, RqPrPartition (..)
-, RqPrTopic (..)
+, Partition (..)
+, Topic (..)
 )
  where
 
@@ -48,21 +48,21 @@ data Request = ProduceRequest
   { rqPrRequiredAcks    :: !RequiredAcks
   , rqPrTimeout         :: !Timeout
   , rqPrNumTopics       :: !ListLength
-  , rqPrTopics          :: [RqPrTopic]
+  , rqPrTopics          :: [Topic]
   }
   | MetadataRequest
-  { rqMdTopicNames      :: [TopicName] }
+  { rqMdTopicNames      :: [TopicName] } --todo: shall we add numtopics as a record too?
   | FetchRequest
   { rqFtReplicaId       :: !ReplicaId
   , rqFtMaxWaitTime     :: !MaxWaitTime
   , rqFtMinBytes        :: !MinBytes
   , rqFtNumTopics       :: !ListLength
-  , rqFtTopics          :: ![RqFtTopic]
+  , rqFtTopics          :: ![Topic]
   }
   | OffsetRequest
   { rqOfReplicaId       :: !ReplicaId
   , rqOfNumTopics       :: !ListLength
-  , rqOfTopics          :: ![RqOfTopic]
+  , rqOfTopics          :: ![Topic]
   }
   | ConsumerMetadataRquest
   { rqCmConsumerGroupLen   :: !StringLength
@@ -75,97 +75,66 @@ data Request = ProduceRequest
   , rqOcConsumerId                  :: !ConsumerId
   , rqOcRetentionTime               :: !RetentionTime
   , rqOcNumTopics                   :: !ListLength
-  , rqOcTopic                       :: [RqOcTopic]
+  , rqOcTopic                       :: [Topic]
   }
   | OffsetFetchRequest
   { rqOftConsumerGroupLen           :: !StringLength
   , rqOftConsumerGroup              :: !ConsumerGroup
   , rqOftNumTopics                  :: !ListLength
-  , rqOftTopic                      :: [RqOftTopic]
+  , rqOftTopic                      :: [Topic]
   }
   deriving (Show)
 
-----------------------
--- ProduceRequest (pr)
-----------------------
 
-data RqPrTopic = RqPrTopic
-  { rqPrTopicNameLen    :: !StringLength
-  , rqPrTopicName       :: !TopicName
-  , rqPrNumPartitions   :: !ListLength
-  , rqPrPartitions      :: [RqPrPartition]
+data Topic = Topic
+  { topicNameLen    :: !StringLength
+  , topicName       :: !TopicName
+  , numPartitions   :: !ListLength
+  , partitions      :: [Partition]
   } deriving (Show)
 
-data RqPrPartition = RqPrPartition
+data Partition =
+  ----------------------
+  -- ProduceRequest (pr)
+  ----------------------
+  RqPrPartition
   { rqPrPartitionNumber :: !PartitionNumber
   , rqPrMessageSetSize  :: !MessageSetSize
   , rqPrMessageSet      :: [MessageSet]
-  } deriving (Show)
-
-----------------------
--- FetchRequest (ft)
-----------------------
-
-data RqFtTopic = RqFtTopic
-  { rqFtTopicNameLen    :: !StringLength
-  , rqFtTopicName       :: !TopicName
-  , rqFtNumPartitions   :: !ListLength
-  , rqFtPartitions      :: [RqFtPartition]
-  } deriving (Show)
-
-data RqFtPartition = RqFtPartition
+  }
+  |
+  ----------------------
+  -- FetchRequest (ft)
+  ----------------------
+  RqFtPartition
   { rqFtPartitionNumber :: !PartitionNumber
   , rqFtFetchOffset     :: !ByteLength
   , rqFtMaxBytes        :: !ByteLength
-  } deriving (Show)
-
-----------------------
--- OffsetRequest (of)
-----------------------
-
-data RqOfTopic = RqOfTopic
-  { rqOfTopicNameLen    :: !StringLength
-  , rqOfTopicName       :: !TopicName
-  , rqOfNumPartitions   :: !ListLength
-  , rqOfPartitions      :: [RqFtPartition]
-  } deriving (Show)
-
-data RqOfPartition = RqOfPartition
+  }
+  |
+  ----------------------
+  -- OffsetRequest (of)
+  ----------------------
+  RqOfPartition
   { rqOfPartitionNumber :: !PartitionNumber
   , rqOfTime            :: !Time
   , rqOfMaxNumOffset    :: !NumOffset
-  } deriving (Show)
-
----------------------------
--- OffsetCommitRequest (oc)
----------------------------
-
-data RqOcTopic = RqOcTopic
-  { rqOcTopicNameLen    :: !StringLength
-  , rqOcTopicName       :: !TopicName
-  , rqOcNumPartitions   :: !ListLength
-  , rqOcPartitions      :: [RqOcPartition]
-  } deriving (Show)
-
-data RqOcPartition = RqOcPartition
+  }
+  |
+  ---------------------------
+  -- OffsetCommitRequest (oc)
+  ---------------------------
+  RqOcPartition
   { rqOcPartitionNumber :: !PartitionNumber
   , rqOcOffset          :: !Offset
   , rqOcMetadataLen     :: !StringLength
   , rqOcMetadata        :: !Metadata
-  } deriving (Show)
-
----------------------------
--- OffsetFetchRequest (oft)
----------------------------
-
-data RqOftTopic = RqOftTopic
-  { rqOftTopicNameLen    :: !StringLength
-  , rqOftTopicName       :: !TopicName
-  , rqOftNumPartitions   :: !ListLength
-  , rqOftPartitions      :: [RqOftPartition]
-  } deriving (Show)
-
-data RqOftPartition = RqOftPartition
+  }
+  |
+  ---------------------------
+  -- OffsetFetchRequest (oft)
+  ---------------------------
+  RqOftPartition
   { rqOftPartitionNumber :: !PartitionNumber
   , rqOftOffset          :: !Offset
   } deriving (Show)

@@ -52,7 +52,7 @@ packRequest iM =
         [messageSet]
   
   in
-  let topic = RqPrTopic
+  let topic = Topic
         (fromIntegral $ BS.length $ inputTopicName iM)
         (inputTopicName iM)
         (fromIntegral $ length [partition])

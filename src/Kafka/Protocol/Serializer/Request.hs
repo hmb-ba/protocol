@@ -14,24 +14,24 @@ buildMessageSets :: [MessageSet] -> BL.ByteString
 buildMessageSets [] = BL.empty
 buildMessageSets (x:xs) = BL.append (buildMessageSet x) (buildMessageSets xs)
 
-buildRqPrPartition :: RqPrPartition -> BL.ByteString
+buildRqPrPartition :: Partition -> BL.ByteString
 buildRqPrPartition e = runPut $ do 
   putWord32be $ rqPrPartitionNumber e
   putWord32be $ rqPrMessageSetSize e
   putLazyByteString $ buildMessageSets $ rqPrMessageSet e
 
-buildRqPrPartitions :: [RqPrPartition] -> BL.ByteString
+buildRqPrPartitions :: [Partition] -> BL.ByteString
 buildRqPrPartitions [] = BL.empty
 buildRqPrPartitions (x:xs) = BL.append (buildRqPrPartition x) (buildRqPrPartitions xs) 
 
-buildRqPrTopic :: RqPrTopic -> BL.ByteString 
+buildRqPrTopic :: Topic -> BL.ByteString 
 buildRqPrTopic e = runPut $  do 
-  putWord16be $ rqPrTopicNameLen e 
-  putByteString $ rqPrTopicName e
-  putWord32be $ rqPrNumPartitions e 
-  putLazyByteString $ buildRqPrPartitions $ rqPrPartitions e 
+  putWord16be $ topicNameLen e 
+  putByteString $ topicName e
+  putWord32be $ numPartitions e 
+  putLazyByteString $ buildRqPrPartitions $ partitions e 
 
-buildRqPrTopics :: [RqPrTopic] -> BL.ByteString
+buildRqPrTopics :: [Topic] -> BL.ByteString
 buildRqPrTopics [] = BL.empty 
 buildRqPrTopics (x:xs) = BL.append (buildRqPrTopic x) (buildRqPrTopics xs)
 
