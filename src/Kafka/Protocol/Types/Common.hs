@@ -8,11 +8,16 @@ module Kafka.Protocol.Types.Common
 , PartitionNumber
 , MessageSetSize
 , NumResponses
+, ListLength
+, ByteLength
 ) where
 
 import Data.Word
 import qualified Data.ByteString as BS
 
+type ListLength = Word32
+type StringLength = Word16
+type ByteLength = Word32
 
 type CorrelationId = Word32
 type ClientId = BS.ByteString
