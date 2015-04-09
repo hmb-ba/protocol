@@ -1,11 +1,6 @@
 module Kafka.Protocol.Serializer.Request 
-( buildMessageSets
-  , buildPartition
-  , buildPartitions
-  , buildTopic
-  , buildTopics
-  , buildProduceRequestMessage
-  , buildRequestMessage
+( 
+ buildRequestMessage
 ) where 
 
 import Data.Binary.Put
@@ -18,43 +13,43 @@ buildMessageSets :: [MessageSet] -> BL.ByteString
 buildMessageSets [] = BL.empty
 buildMessageSets (x:xs) = BL.append (buildMessageSet x) (buildMessageSets xs)
 
-buildPartition :: Partition -> BL.ByteString
-buildPartition e = runPut $ do 
-  putWord32be $ partitionNumber e
-  putWord32be $ messageSetSize e
-  putLazyByteString $ buildMessageSets $  messageSet e
+buildRqPrPartition :: RqPrPartition -> BL.ByteString
+buildRqPrPartition e = runPut $ do 
+  putWord32be $ rqPrPartitionNumber e
+  putWord32be $ rqPrMessageSetSize e
+  putLazyByteString $ buildMessageSets $ rqPrMessageSet e
 
-buildPartitions :: [Partition] -> BL.ByteString
-buildPartitions [] = BL.empty
-buildPartitions (x:xs) = BL.append (buildPartition x) (buildPartitions xs) 
+buildRqPrPartitions :: [RqPrPartition] -> BL.ByteString
+buildRqPrPartitions [] = BL.empty
+buildRqPrPartitions (x:xs) = BL.append (buildRqPrPartition x) (buildRqPrPartitions xs) 
 
-buildTopic :: Topic -> BL.ByteString 
-buildTopic e = runPut $  do 
-  putWord16be $ topicNameLen e 
-  putByteString $ topicName e
-  putWord32be $ numPartitions e 
-  putLazyByteString $ buildPartitions $ partitions e 
+buildRqPrTopic :: RqPrTopic -> BL.ByteString 
+buildRqPrTopic e = runPut $  do 
+  putWord16be $ rqPrTopicNameLen e 
+  putByteString $ rqPrTopicName e
+  putWord32be $ rqPrNumPartitions e 
+  putLazyByteString $ buildRqPrPartitions $ rqPrPartitions e 
 
-buildTopics :: [Topic] -> BL.ByteString
-buildTopics [] = BL.empty 
-buildTopics (x:xs) = BL.append (buildTopic x) (buildTopics xs)
+buildRqPrTopics :: [RqPrTopic] -> BL.ByteString
+buildRqPrTopics [] = BL.empty 
+buildRqPrTopics (x:xs) = BL.append (buildRqPrTopic x) (buildRqPrTopics xs)
 
 buildProduceRequestMessage :: Request -> BL.ByteString
 buildProduceRequestMessage e = runPut $ do 
-  putWord16be $ reqRequiredAcks e
-  putWord32be $ reqTimeout e 
-  putWord32be $ reqNumTopics e 
-  putLazyByteString $ buildTopics $ reqTopics e
+  putWord16be $ rqPrRequiredAcks e
+  putWord32be $ rqPrTimeout e 
+  putWord32be $ rqPrNumTopics e 
+  putLazyByteString $ buildRqPrTopics $ rqPrTopics e
 
 buildRequestMessage :: RequestMessage -> BL.ByteString
 buildRequestMessage e = runPut $ do 
-  putWord32be $ reqSize e
-  putWord16be $ reqApiKey e 
-  putWord16be $ reqApiVersion e 
-  putWord32be $ reqCorrelationId e 
-  putWord16be $ reqClientIdLen e 
-  putByteString $ reqClientId e 
-  putLazyByteString $ buildProduceRequestMessage $ request e
+  putWord32be $ rqSize e
+  putWord16be $ rqApiKey e 
+  putWord16be $ rqApiVersion e 
+  putWord32be $ rqCorrelationId e 
+  putWord16be $ rqClientIdLen e 
+  putByteString $ rqClientId e 
+  putLazyByteString $ buildProduceRequestMessage $ rqRequest e
 
 
 

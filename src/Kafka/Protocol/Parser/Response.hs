@@ -7,14 +7,14 @@ import Kafka.Protocol.Types
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 
-errorParser :: Get Error 
+errorParser :: Get RsPrError 
 errorParser = do 
   partitionNumber <- getWord32be
   errorCode <- getWord16be 
   offset <- getWord64be 
-  return $! Error partitionNumber errorCode offset
+  return $! RsPrError partitionNumber errorCode offset
 
-getErrors :: Int -> Get [Error]
+getErrors :: Int -> Get [RsPrError]
 getErrors i = do 
   if (i < 1)
     then return []

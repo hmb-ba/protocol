@@ -1,5 +1,9 @@
 module Kafka.Protocol.Types.Request
 ( RequestMessage (..)
+, Request (..)
+, RqPrPartition (..)
+, RqPrTopic (..)
+)
  where
 
 import Data.Word
@@ -20,7 +24,7 @@ type MaxWaitTime = Word32
 type MinBytes = Word32
 
 type ConsumerGroup = BS.ByteString
-type ConsumerGroupId = Bs.ByteString
+type ConsumerGroupId = BS.ByteString
 type ConsumerGroupGenerationId = Word32
 type ConsumerId = BS.ByteString
 type RetentionTime = Word64
@@ -43,7 +47,7 @@ data RequestMessage = RequestMessage
 data Request = ProduceRequest
   { rqPrRequiredAcks    :: !RequiredAcks
   , rqPrTimeout         :: !Timeout
-  , rqPrNumTopics       :: !NumTopics
+  , rqPrNumTopics       :: !ListLength
   , rqPrTopics          :: [RqPrTopic]
   }
   | MetadataRequest
@@ -52,13 +56,13 @@ data Request = ProduceRequest
   { rqFtReplicaId       :: !ReplicaId
   , rqFtMaxWaitTime     :: !MaxWaitTime
   , rqFtMinBytes        :: !MinBytes
+  , rqFtNumTopics       :: !ListLength
   , rqFtTopics          :: ![RqFtTopic]
   }
   | OffsetRequest
   { rqOfReplicaId       :: !ReplicaId
-    rqOfTopicNameLen    :: !StringLength
-  , rqOfTopicName       :: !TopicName
-  , rqOfPartition       :: !
+  , rqOfNumTopics       :: !ListLength
+  , rqOfTopics          :: ![RqOfTopic]
   }
   | ConsumerMetadataRquest
   { rqCmConsumerGroupLen   :: !StringLength
@@ -70,11 +74,13 @@ data Request = ProduceRequest
   , rqOcConsumerGroupGenerationId   :: !ConsumerGroupGenerationId
   , rqOcConsumerId                  :: !ConsumerId
   , rqOcRetentionTime               :: !RetentionTime
+  , rqOcNumTopics                   :: !ListLength
   , rqOcTopic                       :: [RqOcTopic]
   }
   | OffsetFetchRequest
   { rqOftConsumerGroupLen           :: !StringLength
   , rqOftConsumerGroup              :: !ConsumerGroup
+  , rqOftNumTopics                  :: !ListLength
   , rqOftTopic                      :: [RqOftTopic]
   }
   deriving (Show)
@@ -86,7 +92,7 @@ data Request = ProduceRequest
 data RqPrTopic = RqPrTopic
   { rqPrTopicNameLen    :: !StringLength
   , rqPrTopicName       :: !TopicName
-  , rqPrNumPartitions   :: !NumPartitions
+  , rqPrNumPartitions   :: !ListLength
   , rqPrPartitions      :: [RqPrPartition]
   } deriving (Show)
 
@@ -103,7 +109,7 @@ data RqPrPartition = RqPrPartition
 data RqFtTopic = RqFtTopic
   { rqFtTopicNameLen    :: !StringLength
   , rqFtTopicName       :: !TopicName
-  , rqFtNumPartitions   :: !NumPartitions
+  , rqFtNumPartitions   :: !ListLength
   , rqFtPartitions      :: [RqFtPartition]
   } deriving (Show)
 
@@ -120,8 +126,8 @@ data RqFtPartition = RqFtPartition
 data RqOfTopic = RqOfTopic
   { rqOfTopicNameLen    :: !StringLength
   , rqOfTopicName       :: !TopicName
-  , rqFtNumPartitions   :: !NumPartitions
-  , rqFtPartitions      :: [RqFtPartition]
+  , rqOfNumPartitions   :: !ListLength
+  , rqOfPartitions      :: [RqFtPartition]
   } deriving (Show)
 
 data RqOfPartition = RqOfPartition
@@ -137,7 +143,7 @@ data RqOfPartition = RqOfPartition
 data RqOcTopic = RqOcTopic
   { rqOcTopicNameLen    :: !StringLength
   , rqOcTopicName       :: !TopicName
-  , rqOcNumPartitions   :: !NumPartitions
+  , rqOcNumPartitions   :: !ListLength
   , rqOcPartitions      :: [RqOcPartition]
   } deriving (Show)
 
@@ -152,15 +158,15 @@ data RqOcPartition = RqOcPartition
 -- OffsetFetchRequest (oft)
 ---------------------------
 
-data RqOfcTopic = RqOfcTopic
-  { rqOfcTopicNameLen    :: !StringLength
-  , rqOfcTopicName       :: !TopicName
-  , rqOfcNumPartitions   :: !NumPartitions
-  , rqOfcPartitions      :: [RqOfcPartition]
+data RqOftTopic = RqOftTopic
+  { rqOftTopicNameLen    :: !StringLength
+  , rqOftTopicName       :: !TopicName
+  , rqOftNumPartitions   :: !ListLength
+  , rqOftPartitions      :: [RqOftPartition]
   } deriving (Show)
 
-data RqOfcPartition = RqOfcPartition
-  { rqOcPartitionNumber :: !PartitionNumber
-  , rqOcOffset          :: !Offset
+data RqOftPartition = RqOftPartition
+  { rqOftPartitionNumber :: !PartitionNumber
+  , rqOftOffset          :: !Offset
   } deriving (Show)
 

@@ -16,30 +16,30 @@ import Kafka.Protocol.Types
 buildRsPrError :: RsPrError -> BL.ByteString 
 
 buildRsPrError e = runPut $ do 
-  putWord32be $ errPartitionNumber e
-  putWord16be $ errCode e 
-  putWord64be $ errOffset e 
+  putWord32be $ rsPrPartitionNumber e
+  putWord16be $ rsPrCode e 
+  putWord64be $ rsPrOffset e 
 
 buildRsPrErrors :: [RsPrError] -> BL.ByteString
 buildRsPrErrors [] = BL.empty
-buildRsPrErrors (x:xs) = BL.append (buildError x) (buildErrors xs)
+buildRsPrErrors (x:xs) = BL.append (buildRsPrError x) (buildRsPrErrors xs)
 
-buildRsPrResponse :: Response -> BL.ByteString
-buildRsPrResponse e = runPut $ do 
-  putWord16be $ resTopicNameLen e 
-  putByteString $ resTopicName e
-  putWord32be $ resNumErrors e 
-  putLazyByteString $ buildErrors $ resErrors e
+buildProduceResponse :: Response -> BL.ByteString
+buildProduceResponse e = runPut $ do 
+  putWord16be $ rsPrTopicNameLen e 
+  putByteString $ rsPrTopicName e
+  putWord32be $ rsPrNumErrors e 
+  putLazyByteString $ buildRsPrErrors $ rsPrErrors e
 
-buildRsPrResponses :: [Response] -> BL.ByteString
-buildRsPrResponses [] = BL.empty 
-buildRsPrResponses (x:xs) = BL.append (buildProduceResponse x) (buildProduceResponses xs)
+buildProduceResponses :: [Response] -> BL.ByteString
+buildProduceResponses [] = BL.empty 
+buildProduceResponses (x:xs) = BL.append (buildProduceResponse x) (buildProduceResponses xs)
 
 buildPrResponseMessage :: ResponseMessage -> BL.ByteString
 buildPrResponseMessage e = runPut $ do 
   putWord32be $ rsCorrelationId e 
   putWord32be $ rsNumResponses e 
-  putLazyByteString $ buildPrResponses $ responses e 
+  putLazyByteString $ buildProduceResponses $ rsResponses e 
 
 --sendProduceResponse :: Socket -> ResponseMessage -> IO() 
 --sendProduceResponse socket responsemessage = do 

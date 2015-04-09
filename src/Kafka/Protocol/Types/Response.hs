@@ -10,7 +10,7 @@ import qualified Data.ByteString.Lazy as BL
 import Kafka.Protocol.Types.Data
 import Kafka.Protocol.Types.Common
 
-type RsErrorCode = Word16
+type ErrorCode = Word16
 type HightwaterMarkOffset = Word64
 
 type RsNodeId = Word32
@@ -25,7 +25,7 @@ type RsOftMetadata = BS.ByteString
 data ResponseMessage = ResponseMessage
   { rsCorrelationId   :: !CorrelationId
   , rsNumResponses    :: !ListLength
-  , rsReponses        :: [Response]
+  , rsResponses        :: [Response]
   } deriving (Show)
 
 data Response = ProduceResponse
@@ -49,7 +49,7 @@ data Response = ProduceResponse
   , rsOfOffsets         :: [RsOfOffset]
   }
   | ConsumerMetadataResponse
-  { rsCmErrorCode       :: !RsErrorCode
+  { rsCmErrorCode       :: !ErrorCode
   , rsCmCoordinatorId   :: !RsNodeId
   , rsCmCoordinatorIdLen :: !StringLength
   , rsCmCoordinatorPort :: !RsMdPort
@@ -68,7 +68,7 @@ data Response = ProduceResponse
 --------------------
 data RsPrError = RsPrError
   { rsPrPartitionNumber :: !PartitionNumber
-  , rsPrCode            :: !RsErrorCode
+  , rsPrCode            :: !ErrorCode
   , rsPrOffset          :: !Offset
   } deriving (Show)
 
@@ -81,8 +81,8 @@ data RsMdBroker = RsMdBroker
   , rsMdPort            :: !RsMdPort
   } deriving (Show)
 
-data RsMtTopicMetadata = RsMtTopicMetadata
-  { rsMdTopicErrorCode  :: !RsErrorCode
+data RsMdTopicMetadata = RsMdTopicMetadata
+  { rsMdTopicErrorCode  :: !ErrorCode
   , rsMdTopicNameLen    :: !StringLength
   , rsMdTopicName       :: !TopicName
   , rsMdNumPartitionMd  :: !ListLength
@@ -90,7 +90,7 @@ data RsMtTopicMetadata = RsMtTopicMetadata
   } deriving (Show)
 
 data RsMdPartitionMetadata = RsMdPartitionMetadata
-  { rsMdPartitionErrorCode :: !RsErrorCode
+  { rsMdPartitionErrorCode :: !ErrorCode
   , rsMdPartitionId        :: !PartitionNumber
   , rsMdLeader             :: !RsNodeId
   , rsMdReplicas           :: [RsNodeId]
@@ -126,7 +126,7 @@ data  RsOfOffset = RsOfOffset
 
 data RsOfPartitionsOf = RsOfPartitionOf
   { rsOfPartitionNumber :: !PartitionNumber
-  , rsOfErrorCode       :: !RsErrorCode
+  , rsOfErrorCode       :: !ErrorCode
   , rsOfOffset          :: !Offset
   } deriving (Show)
 
@@ -138,12 +138,12 @@ data RsOcCommit = RcOcCommit
   , rsOcTopicName       :: !TopicName
   , rsOcNumErrors       :: !ListLength
   , rsOcErrors          :: [RsOcError]
-  }
+  } deriving (Show)
 
 data RsOcError = RsOcError
   { rsOcPartitionNumber :: !PartitionNumber
-  , rsOcErrorCode       :: !RsErrorCode
-  }
+  , rsOcErrorCode       :: !ErrorCode
+  } deriving (Show)
 
 -------------------
 -- Offset Fetch Response (Oft)
@@ -153,12 +153,13 @@ data RsOftFetch = RsOftFetch
   , rsOftTopicName      :: !TopicName
   , rsOftNumErrors      :: !ListLength
   , rsOftErrors         :: [RsOftError]
-  }
+  } deriving (Show)
 
 data RsOftError = RsOftError
-{ rsOftPartitionNumber  :: !PartitionNumber
-, rsOftOffset           :: !Offset
-, rsOftMetadataLen      :: !StringLength
-, rsOftMetadata         :: !RsOftMetadata
-, rsOftErrorCode        :: !RsErrorCode
-}
+  { rsOftPartitionNumber  :: !PartitionNumber
+  , rsOftOffset           :: !Offset
+  , rsOftMetadataLen      :: !StringLength
+  , rsOftMetadata         :: !RsOftMetadata
+  , rsOftErrorCode        :: !ErrorCode
+  } deriving (Show)
+

@@ -20,14 +20,14 @@ getMessageSets i = do
             -- TODO: better Solution for messageSetLength?
             return (messageSet:messageSets)
 
-partitionParser :: Get Partition
+partitionParser :: Get RqPrPartition
 partitionParser = do 
   partitionNumber <- getWord32be
   messageSetSize <- getWord32be
   messageSet <- getMessageSets $ fromIntegral messageSetSize
-  return $ Partition partitionNumber messageSetSize messageSet
+  return $ RqPrPartition partitionNumber messageSetSize messageSet
 
-getPartitions :: Int -> Get [Partition]
+getPartitions :: Int -> Get [RqPrPartition]
 getPartitions i = do
   if (i < 1)
     then return []
@@ -35,15 +35,15 @@ getPartitions i = do
             partitions <- getPartitions $ i-1
             return (partition:partitions)
 
-topicParser :: Get Topic 
+topicParser :: Get RqPrTopic 
 topicParser = do 
   topicNameLen <- getWord16be
   topicName <- getByteString $ fromIntegral topicNameLen
   numPartitions <- getWord32be
   partitions <- getPartitions $ fromIntegral numPartitions
-  return $ Topic topicNameLen topicName numPartitions partitions
+  return $ RqPrTopic topicNameLen topicName numPartitions partitions
 
-getTopics :: Int -> Get [Topic]
+getTopics :: Int -> Get [RqPrTopic]
 getTopics i = do 
   if (i < 1)
     then return []
@@ -79,17 +79,17 @@ metadataRequestParser = do
   topics <- getTopicNames $ fromIntegral numTopicNames
   return $ MetadataRequest topics
 
-fetchRequestParser :: Get Request
-fetchRequestParser = do
-  replicaId     <- getWord32be
-  maxWaitTime   <- getWord32be
-  minBytes      <- getWord32be
-  topicNameLen  <- getWord16be
-  topicName     <- getByteString $ fromIntegral topicNameLen
-  partition     <- getWord32be
-  fetchOffset   <- getWord64be
-  maxBytes      <- getWord32be
-  return $ FetchRequest replicaId maxWaitTime minBytes
+--fetchRequestParser :: Get Request
+--fetchRequestParser = do
+--  replicaId     <- getWord32be
+--  maxWaitTime   <- getWord32be
+--  minBytes      <- getWord32be
+--  topicNameLen  <- getWord16be
+--  topicName     <- getByteString $ fromIntegral topicNameLen
+--  partition     <- getWord32be
+--  fetchOffset   <- getWord64be
+--  maxBytes      <- getWord32be
+--  return $ FetchRequest replicaId maxWaitTime minBytes
 
 requestMessageParser :: Get RequestMessage 
 requestMessageParser = do 
@@ -101,7 +101,7 @@ requestMessageParser = do
   clientId <- getByteString $ fromIntegral clientIdLen
   request <- case (fromIntegral apiKey) of
     0 -> produceRequestParser
-    1 -> fetchRequestParser
+--    1 -> fetchRequestParser
     3 -> metadataRequestParser
   --request <- produceRequestParser
   return $ RequestMessage requestSize apiKey apiVersion correlationId clientIdLen clientId request
