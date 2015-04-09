@@ -9,6 +9,9 @@ module Kafka.Protocol.Types.Common
 , NumResponses
 , ListLength
 , ByteLength
+, StringLength
+, Time
+, NumOffset
 ) where
 
 import Data.Word
@@ -26,4 +29,7 @@ type TopicName = BS.ByteString
 type PartitionNumber = Word32
 type MessageSetSize = Word32
 type NumResponses = Word32
+
+type Time = Word64
+type NumOffset = Word32
 

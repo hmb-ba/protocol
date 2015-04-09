@@ -27,7 +27,7 @@ data Response = ProduceResponse
   , resErrors          :: [Error]
   }
   | MetadataResponse 
-  { resTopicNameLen    :: !TopicNameLen
+  { resTopicNameLen    :: !StringLength
   , resTopicName       :: !TopicName 
   }
   | FetchResponse 
