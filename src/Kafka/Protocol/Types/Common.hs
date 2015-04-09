@@ -4,7 +4,6 @@ module Kafka.Protocol.Types.Common
 , ClientIdLen
 , NumTopics
 , TopicName
-, TopicNameLen
 , PartitionNumber
 , MessageSetSize
 , NumResponses
@@ -24,7 +23,6 @@ type ClientId = BS.ByteString
 type ClientIdLen = Word16
 type NumTopics = Word32
 type TopicName = BS.ByteString
-type TopicNameLen = Word16
 type PartitionNumber = Word32
 type MessageSetSize = Word32
 type NumResponses = Word32

@@ -10,8 +10,6 @@ module Kafka.Protocol.Types.Request
 , Timeout
 , NumTopics
 , Topic (..)
-, TopicName
-, TopicNameLen
 , NumPartitions
 , Partition (..)
 , PartitionNumber
@@ -61,7 +59,7 @@ data Request = ProduceRequest
   deriving (Show)
 
 data RqPrTopic = RqPrTopic
-  { rqPrTopicNameLen    :: !TopicNameLen
+  { rqPrTopicNameLen    :: !StringLength
   , rqPrTopicName       :: !TopicName
   , rqPrNumPartitions   :: !NumPartitions
   , rqPrPartitions      :: [Partition]
