@@ -4,45 +4,69 @@ module Kafka.Protocol.Parser.Response
 ) where 
 
 import Kafka.Protocol.Types
+import Kafka.Protocol.Parser.Data
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 
-errorParser :: Get RsPrError 
-errorParser = do 
+parseList :: Int -> (Get a) -> Get [a]
+parseList i p = do 
+  if (i < 1) 
+    then return []
+    else do x <- p
+            xs <- parseList (i-1) p
+            return (x:xs)
+
+---------------------
+-- Produce Response (Pr)
+---------------------
+rsPrErrorParser :: Get RsPrError 
+rsPrErrorParser= do 
   partitionNumber <- getWord32be
   errorCode <- getWord16be 
   offset <- getWord64be 
   return $! RsPrError partitionNumber errorCode offset
-
-getErrors :: Int -> Get [RsPrError]
-getErrors i = do 
-  if (i < 1)
-    then return []
-    else do error <- errorParser 
-            errors <- getErrors $ i-1
-            return (error:errors)
 
 produceResponseParser :: Get Response
 produceResponseParser = do 
   topicNameLen <- getWord16be
   topicsName <- getByteString $ fromIntegral topicNameLen
   numErrors <- getWord32be
-  errors <- getErrors $ fromIntegral numErrors
+  errors <- parseList (fromIntegral numErrors) rsPrErrorParser
   return $! ProduceResponse topicNameLen topicsName numErrors errors
-
-getProduceResponses :: Int -> Get [Response]
-getProduceResponses i = do 
-  if (i < 1) 
-    then return []
-    else do response <- produceResponseParser 
-            responses <- getProduceResponses $ i-1
-            return (response:responses)
 
 produceResponseMessageParser :: Get ResponseMessage
 produceResponseMessageParser = do 
   correlationId <- getWord32be 
   numResponses <- getWord32be
-  responses <- getProduceResponses $ fromIntegral numResponses
+  responses <- parseList (fromIntegral numResponses) produceResponseParser
   return $! ResponseMessage correlationId numResponses responses
+
+---------------------
+-- Fetch Response (Ft)
+---------------------
+fetchResponseMessageParser :: Get ResponseMessage 
+fetchResponseMessageParser = do 
+  correlationId <- getWord32be 
+  numResponses <- getWord32be
+  responses <- parseList (fromIntegral numResponses) fetchResponseParser
+  return $! ResponseMessage correlationId numResponses responses
+
+fetchResponseParser :: Get Response
+fetchResponseParser = do 
+  topicNameLen <- getWord16be
+  topicsName <- getByteString $ fromIntegral topicNameLen
+  numPayloads <- getWord32be
+  payloads <- parseList (fromIntegral numPayloads) rsFtPayloadParser
+  return $! FetchResponse topicNameLen topicsName numPayloads payloads
+
+rsFtPayloadParser :: Get RsFtPayload 
+rsFtPayloadParser = do 
+  partition <- getWord32be
+  errorCode <- getWord16be
+  hwMarkOffset <- getWord64be
+  messageSetSize <- getWord32be
+  messageSet <- messageSetParser
+  return $! RsFtPayload partition errorCode hwMarkOffset messageSetSize messageSet
+
 
 
