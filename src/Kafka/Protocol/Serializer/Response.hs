@@ -1,5 +1,6 @@
 module Kafka.Protocol.Serializer.Response
-( sendProduceResponse 
+( 
+ buildPrResponseMessage
 ) where 
 
 import qualified Data.ByteString as BS
@@ -9,35 +10,39 @@ import Network.Socket
 import Data.Binary.Put
 import Kafka.Protocol.Types
 
-buildError :: Error -> BL.ByteString 
-buildError e = runPut $ do 
+--------------------
+-- Produce Response (Pr)
+--------------------
+buildRsPrError :: RsPrError -> BL.ByteString 
+
+buildRsPrError e = runPut $ do 
   putWord32be $ errPartitionNumber e
   putWord16be $ errCode e 
   putWord64be $ errOffset e 
 
-buildErrors :: [Error] -> BL.ByteString
-buildErrors [] = BL.empty
-buildErrors (x:xs) = BL.append (buildError x) (buildErrors xs)
+buildRsPrErrors :: [RsPrError] -> BL.ByteString
+buildRsPrErrors [] = BL.empty
+buildRsPrErrors (x:xs) = BL.append (buildError x) (buildErrors xs)
 
-buildProduceResponse :: Response -> BL.ByteString
-buildProduceResponse e = runPut $ do 
+buildRsPrResponse :: Response -> BL.ByteString
+buildRsPrResponse e = runPut $ do 
   putWord16be $ resTopicNameLen e 
   putByteString $ resTopicName e
   putWord32be $ resNumErrors e 
   putLazyByteString $ buildErrors $ resErrors e
 
-buildProduceResponses :: [Response] -> BL.ByteString
-buildProduceResponses [] = BL.empty 
-buildProduceResponses (x:xs) = BL.append (buildProduceResponse x) (buildProduceResponses xs)
+buildRsPrResponses :: [Response] -> BL.ByteString
+buildRsPrResponses [] = BL.empty 
+buildRsPrResponses (x:xs) = BL.append (buildProduceResponse x) (buildProduceResponses xs)
 
-buildProduceResponseMessage :: ResponseMessage -> BL.ByteString
-buildProduceResponseMessage e = runPut $ do 
-  putWord32be $ resCorrelationId e 
-  putWord32be $ resNumResponses e 
-  putLazyByteString $ buildProduceResponses $ responses e 
+buildPrResponseMessage :: ResponseMessage -> BL.ByteString
+buildPrResponseMessage e = runPut $ do 
+  putWord32be $ rsCorrelationId e 
+  putWord32be $ rsNumResponses e 
+  putLazyByteString $ buildPrResponses $ responses e 
 
-sendProduceResponse :: Socket -> ResponseMessage -> IO() 
-sendProduceResponse socket responsemessage = do 
-  let msg = buildProduceResponseMessage responsemessage
-  SBL.sendAll socket msg
+--sendProduceResponse :: Socket -> ResponseMessage -> IO() 
+--sendProduceResponse socket responsemessage = do 
+--  let msg = buildProduceResponseMessage responsemessage
+--  SBL.sendAll socket msg
 
