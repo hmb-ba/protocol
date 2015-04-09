@@ -13,7 +13,6 @@ import Kafka.Protocol.Types.Common
 type ErrorCode = Word16
 type NumErrors = Word32
 type HightwaterMarkOffset = Word64
-type ListLength = Word32
 
 data ResponseMessage = ResponseMessage
   { resCorrelationId   :: !CorrelationId
