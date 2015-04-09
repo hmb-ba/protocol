@@ -10,8 +10,6 @@ module Kafka.Protocol.Types.Request
 , Timeout
 , NumTopics
 , Topic (..)
-, TopicName
-, TopicNameLen
 , NumPartitions
 , Partition (..)
 , PartitionNumber
@@ -36,41 +34,41 @@ type MinBytes = Word32
 
 
 data RequestMessage = RequestMessage
-  { reqSize     :: !RequestSize
-  , reqApiKey          :: !ApiKey
-  , reqApiVersion      :: !ApiVersion
-  , reqCorrelationId   :: !CorrelationId
-  , reqClientIdLen     :: !ClientIdLen
-  , reqClientId        :: !ClientId
-  , request            :: Request
+  { rqSize     :: !RequestSize
+  , rqApiKey          :: !ApiKey
+  , rqApiVersion      :: !ApiVersion
+  , rqCorrelationId   :: !CorrelationId
+  , rqClientIdLen     :: !ClientIdLen
+  , rqClientId        :: !ClientId
+  , rqRequest            :: Request
   } deriving (Show)
 
 data Request = ProduceRequest
-  { reqRequiredAcks    :: !RequiredAcks
-  , reqTimeout         :: !Timeout
-  , reqNumTopics       :: !NumTopics
-  , reqTopics          :: [Topic]
+  { rqPrRequiredAcks    :: !RequiredAcks
+  , rqPrTimeout         :: !Timeout
+  , rqPrNumTopics       :: !NumTopics
+  , rqPrTopics          :: [Topic]
   }
   | MetadataRequest
-  { reqTopicNames      :: [TopicName] }
+  { rqMdTopicNames      :: [TopicName] }
   | FetchRequest
-  { fetReplicaId       :: !ReplicaId
-  , fetMaxWaitTime     :: !MaxWaitTime
-  , fetMinBytes        :: !MinBytes
+  { rqMdReplicaId       :: !ReplicaId
+  , rqMdMaxWaitTime     :: !MaxWaitTime
+  , rqMdMinBytes        :: !MinBytes
   }
   deriving (Show)
 
-data Topic = Topic
-  { topicNameLen    :: !TopicNameLen
-  , topicName       :: !TopicName
-  , numPartitions   :: !NumPartitions
-  , partitions      :: [Partition]
+data RqPrTopic = RqPrTopic
+  { rqPrTopicNameLen    :: !StringLength
+  , rqPrTopicName       :: !TopicName
+  , rqPrNumPartitions   :: !NumPartitions
+  , rqPrPartitions      :: [Partition]
   } deriving (Show)
 
-data Partition = Partition
-  { partitionNumber :: !PartitionNumber
-  , messageSetSize  :: !MessageSetSize
-  , messageSet      :: [MessageSet]
+data RqPrPartition = RqPrPartition
+  { rqPrPartitionNumber :: !PartitionNumber
+  , rqPrMessageSetSize  :: !MessageSetSize
+  , rqPrMessageSet      :: [MessageSet]
   } deriving (Show)
 
 
