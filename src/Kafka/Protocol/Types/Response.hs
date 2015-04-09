@@ -13,9 +13,11 @@ import Kafka.Protocol.Types.Common
 type RsErrorCode = Word16
 type HightwaterMarkOffset = Word64
 
-type RsMdNodeId = Word32
+type RsNodeId = Word32
 type RsMdHost = BS.ByteString
 type RsMdPort = Word32
+
+type RsOftMetadata = BS.ByteString
 
 --------------------
 -- Response (Rs)
@@ -41,12 +43,25 @@ data Response = ProduceResponse
   | FetchResponse
   { rsFtNumFetchs       :: !ListLength
   , rsFtFetchs          :: [RsFtFetch]
-  } deriving (Show)
-  | OffsetResponse
-  {
-    rsOfNumOffsets      ::!ListLength
-  , rsOfOffsets         ::[RsOfOffset]
   }
+  | OffsetResponse
+  { rsOfNumOffsets      :: !ListLength
+  , rsOfOffsets         :: [RsOfOffset]
+  }
+  | ConsumerMetadataResponse
+  { rsCmErrorCode       :: !RsErrorCode
+  , rsCmCoordinatorId   :: !RsNodeId
+  , rsCmCoordinatorIdLen :: !StringLength
+  , rsCmCoordinatorPort :: !RsMdPort
+  }
+  | OffsetCommitResponse
+  { rsOcNumCommits    :: !ListLength
+  , rsOcCommits       :: [RsOcCommit]
+  }
+  | OffsetFetchResponse
+  { rsOftNumFetch     :: !ListLength
+  , rsOftFetchs       :: [RsOftFetch]
+  } deriving (Show)
 
 --------------------
 -- Produce Response (Pr)
@@ -61,7 +76,7 @@ data RsPrError = RsPrError
 -- Metadata Response (Mt)
 --------------------
 data RsMdBroker = RsMdBroker
-  { rsMdNodeId          :: !RsMdNodeId
+  { rsMdNodeId          :: !RsNodeId
   , rsMdHost            :: !RsMdHost
   , rsMdPort            :: !RsMdPort
   } deriving (Show)
@@ -77,9 +92,9 @@ data RsMtTopicMetadata = RsMtTopicMetadata
 data RsMdPartitionMetadata = RsMdPartitionMetadata
   { rsMdPartitionErrorCode :: !RsErrorCode
   , rsMdPartitionId        :: !PartitionNumber
-  , rsMdLeader             :: !RsMdNodeId
-  , rsMdReplicas           :: [RsMdNodeId]
-  , rsMdIsr                :: [RsMdNodeId]
+  , rsMdLeader             :: !RsNodeId
+  , rsMdReplicas           :: [RsNodeId]
+  , rsMdIsr                :: [RsNodeId]
   } deriving (Show)
 
 -------------------
@@ -114,3 +129,36 @@ data RsOfPartitionsOf = RsOfPartitionOf
   , rsOfErrorCode       :: !RsErrorCode
   , rsOfOffset          :: !Offset
   } deriving (Show)
+
+-------------------
+-- Offset Commit Response (Oc)
+-------------------
+data RsOcCommit = RcOcCommit
+  { rsOcTopicNameLen    :: !StringLength
+  , rsOcTopicName       :: !TopicName
+  , rsOcNumErrors       :: !ListLength
+  , rsOcErrors          :: [RsOcError]
+  }
+
+data RsOcError = RsOcError
+  { rsOcPartitionNumber :: !PartitionNumber
+  , rsOcErrorCode       :: !RsErrorCode
+  }
+
+-------------------
+-- Offset Fetch Response (Oft)
+-------------------
+data RsOftFetch = RsOftFetch
+  { rsOftTopicNameLen   :: !StringLength
+  , rsOftTopicName      :: !TopicName
+  , rsOftNumErrors      :: !ListLength
+  , rsOftErrors         :: [RsOftError]
+  }
+
+data RsOftError = RsOftError
+{ rsOftPartitionNumber  :: !PartitionNumber
+, rsOftOffset           :: !Offset
+, rsOftMetadataLen      :: !StringLength
+, rsOftMetadata         :: !RsOftMetadata
+, rsOftErrorCode        :: !RsErrorCode
+}
