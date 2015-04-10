@@ -75,19 +75,14 @@ metadataRequestParser = do
   topics <- parseList (fromIntegral numTopicNames) topicNameParser
   return $ MetadataRequest topics
 
---fetchRequestParser :: Get Request
---fetchRequestParser = do
---  replicaId     <- getWord32be
---  maxWaitTime   <- getWord32be
---  minBytes      <- getWord32be
---
---  numTopics     <- getWord32be
---  topics <- getTopicNames $ fromIntegral numTopics
---
---  partition     <- getWord32be
---  fetchOffset   <- getWord64be
---  maxBytes      <- getWord32be
---  return $ FetchRequest replicaId maxWaitTime minBytes
+fetchRequestParser :: Get Request
+fetchRequestParser = do
+  replicaId     <- getWord32be
+  maxWaitTime   <- getWord32be
+  minBytes      <- getWord32be
+  numTopics     <- getWord32be
+  topics        <- parseList (fromIntegral numTopics) (topicParser rqFtPartitionParser)
+  return $ FetchRequest replicaId maxWaitTime minBytes numTopics topics
 
 requestMessageParser :: Get RequestMessage 
 requestMessageParser = do 
