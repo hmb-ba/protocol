@@ -20,22 +20,44 @@ parseList i p = do
             return (x:xs)
 
 
-getMessageSets :: Int -> Get [MessageSet]
-getMessageSets i = do 
-  --empty <- isEmpty 
-  if (i < 1)
-    then return []
-    else do messageSet <- messageSetParser
-            messageSets <- getMessageSets $ i - (fromIntegral $ BL.length $ buildMessageSet messageSet)
-            -- TODO: better Solution for messageSetLength?
-            return (messageSet:messageSets)
+topicNameParser :: Get TopicName
+topicNameParser = do 
+  topicNameLen  <- getWord16be
+  topicName     <- getByteString $ fromIntegral topicNameLen
+  return topicName
+
+
+topicParser :: (Get Partition) -> Get Topic 
+topicParser p = do 
+  topicNameLen  <- getWord16be
+  topicName     <- getByteString $ fromIntegral topicNameLen
+  numPartitions <- getWord32be
+  partitions    <- parseList (fromIntegral numPartitions) p
+  return $ Topic topicNameLen topicName numPartitions partitions
+
+
+------------------------
+-- Produce Request (Pr)
+------------------------
 
 rqPrPartitionParser :: Get Partition
 rqPrPartitionParser = do 
-  partitionNumber <- getWord32be
-  messageSetSize <- getWord32be
-  messageSet <- getMessageSets $ fromIntegral messageSetSize
+  partitionNumber   <- getWord32be
+  messageSetSize    <- getWord32be
+  messageSet        <- parseList (fromIntegral messageSetSize) messageSetParser
   return $ RqPrPartition partitionNumber messageSetSize messageSet
+
+produceRequestParser :: Get Request
+produceRequestParser = do 
+  requiredAcks  <- getWord16be
+  timeout       <- getWord32be 
+  numTopics     <- getWord32be
+  topics        <- parseList (fromIntegral numTopics) (topicParser rqPrPartitionParser)
+  return $ ProduceRequest requiredAcks timeout numTopics topics
+
+---------------------
+-- Fetch Request (Ft)
+---------------------
 
 rqFtPartitionParser :: Get Partition
 rqFtPartitionParser = do
@@ -43,37 +65,6 @@ rqFtPartitionParser = do
   fetchOffset     <- getWord32be
   maxBytes        <- getWord32be
   return $ RqFtPartition partitionNumber fetchOffset maxBytes
-
-
-topicParser :: (Get Partition) -> Get Topic 
-topicParser p = do 
-  topicNameLen <- getWord16be
-  topicName <- getByteString $ fromIntegral topicNameLen
-  numPartitions <- getWord32be
-  partitions <- parseList (fromIntegral numPartitions) p
-  return $ Topic topicNameLen topicName numPartitions partitions
-
-topicNameParser :: Get TopicName
-topicNameParser = do 
-  topicNameLen <- getWord16be
-  topicName <- getByteString $ fromIntegral topicNameLen
-  return topicName
-
-
-produceRequestParser :: Get Request
-produceRequestParser = do 
-  requiredAcks <- getWord16be
-  timeout <- getWord32be 
-  numTopics <- getWord32be
-  topics <- parseList (fromIntegral numTopics) (topicParser rqPrPartitionParser)
-  return $ ProduceRequest requiredAcks timeout numTopics topics
-
-
-metadataRequestParser :: Get Request
-metadataRequestParser = do 
-  numTopicNames <- getWord32be
-  topics <- parseList (fromIntegral numTopicNames) topicNameParser
-  return $ MetadataRequest topics
 
 fetchRequestParser :: Get Request
 fetchRequestParser = do
@@ -84,17 +75,32 @@ fetchRequestParser = do
   topics        <- parseList (fromIntegral numTopics) (topicParser rqFtPartitionParser)
   return $ FetchRequest replicaId maxWaitTime minBytes numTopics topics
 
+
+------------------------
+-- Metadata Request (Md)
+------------------------
+
+metadataRequestParser :: Get Request
+metadataRequestParser = do 
+  numTopicNames <- getWord32be
+  topics        <- parseList (fromIntegral numTopicNames) topicNameParser
+  return $ MetadataRequest topics
+
+------------------------
+-- Request Message (Rq)
+------------------------
+
 requestMessageParser :: Get RequestMessage 
 requestMessageParser = do 
-  requestSize <- getWord32be
-  apiKey <- getWord16be
-  apiVersion <- getWord16be 
+  requestSize   <- getWord32be
+  apiKey        <- getWord16be
+  apiVersion    <- getWord16be 
   correlationId <- getWord32be 
-  clientIdLen <- getWord16be 
-  clientId <- getByteString $ fromIntegral clientIdLen
-  request <- case (fromIntegral apiKey) of
+  clientIdLen   <- getWord16be 
+  clientId      <- getByteString $ fromIntegral clientIdLen
+  request       <- case (fromIntegral apiKey) of
     0 -> produceRequestParser
---    1 -> fetchRequestParser
+    1 -> fetchRequestParser
     3 -> metadataRequestParser
   --request <- produceRequestParser
   return $ RequestMessage requestSize apiKey apiVersion correlationId clientIdLen clientId request
