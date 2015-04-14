@@ -64,7 +64,12 @@ buildProduceRequestMessage e = runPut $ do
 -------------------------------
 --TODO: 
 --buildFetchRequestMessage :: Request -> BL.ByteString
---buildFetchRequestMessage 
+--buildFetchRequestMessage e = runPut $ do 
+--  putWord32be $ rqFtReplicaId e 
+--  putWord32be $ rqFtMaxWaitTime e
+--  putWord32be $ rqFtMinBytes e
+--  putword32be $ rqFtNumTopics e 
+--  putLazyByteString $ buildTopic
 
 
 
