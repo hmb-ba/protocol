@@ -35,17 +35,22 @@ topicParser p = do
   partitions    <- parseList (fromIntegral numPartitions) p
   return $ Topic topicNameLen topicName numPartitions partitions
 
-
 ------------------------
 -- Produce Request (Pr)
 ------------------------
+parseMessageSets :: Int -> Get [MessageSet]
+parseMessageSets i = do
+    if (i < 1)
+    then return []
+    else do messageSet <- messageSetParser
+            messageSets <- parseMessageSets $ i - (fromIntegral $ BL.length $ buildMessageSet messageSet)
+            return (messageSet:messageSets)
 
-rqPrPartitionParser :: Get Partition
 rqPrPartitionParser = do 
   partitionNumber   <- getWord32be
   messageSetSize    <- getWord32be
-  messageSet        <- parseList (fromIntegral messageSetSize) messageSetParser
-  return $ RqPrPartition partitionNumber messageSetSize messageSet
+  messageSets       <- parseMessageSets (fromIntegral messageSetSize)
+  return $ RqPrPartition partitionNumber messageSetSize messageSets
 
 produceRequestParser :: Get Request
 produceRequestParser = do 
