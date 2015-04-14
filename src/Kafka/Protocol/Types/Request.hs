@@ -22,6 +22,7 @@ type NumPartitions = Word32
 type ReplicaId = Word32
 type MaxWaitTime = Word32
 type MinBytes = Word32
+type MaxBytes = Word32
 
 type ConsumerGroup = BS.ByteString
 type ConsumerGroupId = BS.ByteString
@@ -108,8 +109,8 @@ data Partition =
   ----------------------
   RqFtPartition
   { rqFtPartitionNumber :: !PartitionNumber
-  , rqFtFetchOffset     :: !ByteLength
-  , rqFtMaxBytes        :: !ByteLength
+  , rqFtFetchOffset     :: !Offset
+  , rqFtMaxBytes        :: !MaxBytes
   }
   |
   ----------------------

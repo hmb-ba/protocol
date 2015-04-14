@@ -10,6 +10,23 @@ import qualified Network.Socket.ByteString.Lazy as SBL
 import Kafka.Protocol.Types
 import Kafka.Protocol.Serializer.Data
 
+buildList :: (a -> BL.ByteString) -> [a] -> BL.ByteString
+buildList builder [] = BL.empty 
+buildList builder (x:xs) = BL.append (builder x) (buildList builder xs)
+
+buildRequestMessage :: RequestMessage -> BL.ByteString
+buildRequestMessage e = runPut $ do 
+  putWord32be $ rqSize e
+  putWord16be $ rqApiKey e 
+  putWord16be $ rqApiVersion e 
+  putWord32be $ rqCorrelationId e 
+  putWord16be $ rqClientIdLen e 
+  putByteString $ rqClientId e 
+  putLazyByteString $ buildProduceRequestMessage $ rqRequest e
+
+-------------------------------
+-- Produce Request
+-------------------------------
 buildMessageSets :: [MessageSet] -> BL.ByteString
 buildMessageSets [] = BL.empty
 buildMessageSets (x:xs) = BL.append (buildMessageSet x) (buildMessageSets xs)
@@ -42,17 +59,12 @@ buildProduceRequestMessage e = runPut $ do
   putWord32be $ rqPrNumTopics e 
   putLazyByteString $ buildRqPrTopics $ rqPrTopics e
 
-buildRequestMessage :: RequestMessage -> BL.ByteString
-buildRequestMessage e = runPut $ do 
-  putWord32be $ rqSize e
-  putWord16be $ rqApiKey e 
-  putWord16be $ rqApiVersion e 
-  putWord32be $ rqCorrelationId e 
-  putWord16be $ rqClientIdLen e 
-  putByteString $ rqClientId e 
-  putLazyByteString $ buildProduceRequestMessage $ rqRequest e
-
-
+-------------------------------
+-- Fetch Request
+-------------------------------
+--TODO: 
+--buildFetchRequestMessage :: Request -> BL.ByteString
+--buildFetchRequestMessage 
 
 
 

@@ -67,7 +67,7 @@ produceRequestParser = do
 rqFtPartitionParser :: Get Partition
 rqFtPartitionParser = do
   partitionNumber <- getWord32be
-  fetchOffset     <- getWord32be
+  fetchOffset     <- getWord64be
   maxBytes        <- getWord32be
   return $ RqFtPartition partitionNumber fetchOffset maxBytes
 
