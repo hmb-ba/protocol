@@ -1,7 +1,10 @@
 module Kafka.Protocol.Serializer.Request 
 ( 
-  buildRequestMessage
-, buildProduceRequestMessage
+  buildRqMessage
+, buildProduceRequest
+, buildPrRqMessage
+, buildFetchRequest
+, buildFtRqMessage
 ) where 
 
 import Data.Binary.Put
@@ -14,15 +17,15 @@ buildList :: (a -> BL.ByteString) -> [a] -> BL.ByteString
 buildList builder [] = BL.empty 
 buildList builder (x:xs) = BL.append (builder x) (buildList builder xs)
 
-buildRequestMessage :: RequestMessage -> BL.ByteString
-buildRequestMessage e = runPut $ do 
+buildRqMessage :: RequestMessage -> (Request -> BL.ByteString) -> BL.ByteString
+buildRqMessage e rb = runPut $ do 
   putWord32be $ rqSize e
   putWord16be $ rqApiKey e 
   putWord16be $ rqApiVersion e 
   putWord32be $ rqCorrelationId e 
   putWord16be $ rqClientIdLen e 
   putByteString $ rqClientId e 
-  putLazyByteString $ buildProduceRequestMessage $ rqRequest e
+  putLazyByteString $ rb $ rqRequest e
 
 -------------------------------
 -- Produce Request
@@ -52,24 +55,41 @@ buildRqPrTopics :: [Topic] -> BL.ByteString
 buildRqPrTopics [] = BL.empty 
 buildRqPrTopics (x:xs) = BL.append (buildRqPrTopic x) (buildRqPrTopics xs)
 
-buildProduceRequestMessage :: Request -> BL.ByteString
-buildProduceRequestMessage e = runPut $ do 
+buildProduceRequest :: Request -> BL.ByteString
+buildProduceRequest e = runPut $ do 
   putWord16be $ rqPrRequiredAcks e
   putWord32be $ rqPrTimeout e 
   putWord32be $ rqPrNumTopics e 
   putLazyByteString $ buildRqPrTopics $ rqPrTopics e
 
+buildPrRqMessage :: RequestMessage -> BL.ByteString
+buildPrRqMessage rm = buildRqMessage rm buildProduceRequest
+
 -------------------------------
 -- Fetch Request
 -------------------------------
---TODO: 
---buildFetchRequestMessage :: Request -> BL.ByteString
---buildFetchRequestMessage e = runPut $ do 
---  putWord32be $ rqFtReplicaId e 
---  putWord32be $ rqFtMaxWaitTime e
---  putWord32be $ rqFtMinBytes e
---  putword32be $ rqFtNumTopics e 
---  putLazyByteString $ buildTopic
 
+buildRqFtPartition :: Partition -> BL.ByteString
+buildRqFtPartition p = runPut $ do
+  putWord32be $ rqFtPartitionNumber p
+  putWord64be $ rqFtFetchOffset p
+  putWord32be $ rqFtMaxBytes p
 
+buildTopic :: (Partition -> BL.ByteString) -> Topic -> BL.ByteString
+buildTopic pb t = runPut $ do
+  putWord16be       $ topicNameLen t
+  putByteString     $ topicName t
+  putWord32be       $ numPartitions t
+  putLazyByteString $ foldl (\acc p -> BL.append acc (pb p)) BL.empty $ partitions t
+
+buildFetchRequest :: Request -> BL.ByteString
+buildFetchRequest e = runPut $ do 
+  putWord32be $ rqFtReplicaId e 
+  putWord32be $ rqFtMaxWaitTime e
+  putWord32be $ rqFtMinBytes e
+  putWord32be $ rqFtNumTopics e 
+  putLazyByteString $ foldl (\acc t -> BL.append acc (buildTopic buildRqFtPartition t)) BL.empty $ rqFtTopics e
+
+buildFtRqMessage :: RequestMessage -> BL.ByteString
+buildFtRqMessage rm = buildRqMessage rm buildFetchRequest
 

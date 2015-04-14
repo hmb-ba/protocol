@@ -67,7 +67,7 @@ packRequest iM =
   
   in
   let requestMessage = RequestMessage {
-      rqSize = fromIntegral $ (BL.length $ buildProduceRequestMessage produceRequest )
+      rqSize = fromIntegral $ (BL.length $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
           + 4 -- correlationId 
@@ -85,7 +85,7 @@ packRequest iM =
 
 sendRequest :: Socket -> RequestMessage -> IO() 
 sendRequest socket requestMessage = do 
-  let msg = buildRequestMessage requestMessage
+  let msg = buildPrRqMessage requestMessage
   SBL.sendAll socket msg
 
 readProduceResponse :: BL.ByteString -> IO ResponseMessage

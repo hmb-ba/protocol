@@ -41,7 +41,7 @@ packFtPartition = RqFtPartition
 
 packFtRequestMessage :: InputFt -> RequestMessage
 packFtRequestMessage iM = RequestMessage {
-       rqSize = fromIntegral $ (BL.length $ buildFetchRequestMessage $ packFtRequest $ ftInputTopicName iM )
+       rqSize = fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest $ ftInputTopicName iM )
            + 2 -- reqApiKey
            + 2 -- reqApiVersion
            + 4 -- correlationId 
@@ -57,7 +57,7 @@ packFtRequestMessage iM = RequestMessage {
 
 sendFtRequest :: Socket -> RequestMessage -> IO() 
 sendFtRequest socket requestMessage = do 
-  let msg = buildFetchRequestMessage requestMessage
+  let msg = buildFtRqMessage requestMessage
   SBL.sendAll socket msg
 
 
