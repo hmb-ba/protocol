@@ -1,6 +1,6 @@
 module Kafka.Protocol.Parser.Response
-(
-  produceResponseMessageParser
+( produceResponseMessageParser
+, fetchResponseMessageParser
 ) where 
 
 import Kafka.Protocol.Types
