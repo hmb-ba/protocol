@@ -114,7 +114,7 @@ data RsFtPayload = RsFtPayload
   , rsFtErrorCode        :: !ErrorCode
   , rsFtHwMarkOffset     :: !HightwaterMarkOffset
   , rsFtMessageSetSize   :: !MessageSetSize
-  , rsFtMessageSet       :: !MessageSet
+  , rsFtMessageSets      :: [MessageSet]
   } deriving (Show)
 
 -------------------

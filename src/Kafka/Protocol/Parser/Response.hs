@@ -5,6 +5,7 @@ module Kafka.Protocol.Parser.Response
 
 import Kafka.Protocol.Types
 import Kafka.Protocol.Parser.Data
+import Kafka.Protocol.Serializer.Data
 import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BL
 
@@ -44,9 +45,20 @@ produceResponseMessageParser = do
 ---------------------
 -- Fetch Response (Ft)
 ---------------------
+
+-- TODO: Duplicated Code (Serializer.Request)
+parseMessageSets :: Int -> Get [MessageSet]
+parseMessageSets i = do
+    if (i < 1)
+    then return []
+    else do messageSet <- messageSetParser
+            messageSets <- parseMessageSets $ i - (fromIntegral $ BL.length $ buildMessageSet messageSet)
+            return (messageSet:messageSets)
+
 fetchResponseMessageParser :: Get ResponseMessage 
 fetchResponseMessageParser = do 
   correlationId <- getWord32be 
+  unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) fetchResponseParser
   return $! ResponseMessage correlationId numResponses responses
@@ -65,7 +77,7 @@ rsFtPayloadParser = do
   errorCode <- getWord16be
   hwMarkOffset <- getWord64be
   messageSetSize <- getWord32be
-  messageSet <- messageSetParser
+  messageSet <- parseMessageSets (fromIntegral messageSetSize)
   return $! RsFtPayload partition errorCode hwMarkOffset messageSetSize messageSet
 
 

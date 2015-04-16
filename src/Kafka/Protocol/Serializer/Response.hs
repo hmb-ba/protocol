@@ -62,7 +62,7 @@ buildFtPayload p = runPut $ do
   putWord16be       $ rsFtErrorCode p
   putWord64be       $ rsFtHwMarkOffset p
   putWord32be       $ rsFtMessageSetSize p
-  putLazyByteString $ buildMessageSet $ rsFtMessageSet p
+  putLazyByteString $ foldl (\acc ms -> BL.append acc (buildMessageSet ms)) BL.empty $ rsFtMessageSets p
 
 
 buildFtRs :: Response -> BL.ByteString
