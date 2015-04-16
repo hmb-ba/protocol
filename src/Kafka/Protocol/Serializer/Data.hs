@@ -2,7 +2,8 @@ module Kafka.Protocol.Serializer.Data
 (
 buildMessageSet,
 buildMessage,
-buildPayload
+buildPayload,
+buildLogEntry
 ) 
 where
 
@@ -10,6 +11,14 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Binary.Put
 import Kafka.Protocol.Types
 import Data.Digest.CRC32
+
+
+--TODO: Duplicated Code (buildMessageSet)
+buildLogEntry :: MessageSet -> Offset -> BL.ByteString  
+buildLogEntry e o = runPut $ do 
+  putWord64be $ o
+  putWord32be $ len e
+  putLazyByteString $ buildMessage $ message e
 
 
 buildMessageSet :: MessageSet -> BL.ByteString

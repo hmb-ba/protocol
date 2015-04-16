@@ -38,10 +38,10 @@ produceResponseParser = do
 produceResponseMessageParser :: Get ResponseMessage
 produceResponseMessageParser = do 
   correlationId <- getWord32be 
+  unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) produceResponseParser
   return $! ResponseMessage correlationId numResponses responses
-
 ---------------------
 -- Fetch Response (Ft)
 ---------------------

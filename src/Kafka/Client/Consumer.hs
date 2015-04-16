@@ -16,7 +16,8 @@ import Kafka.Protocol
 
 data InputFt = InputFt
   { ftInputClientId        :: !ClientId,
-    ftInputTopicName       :: !TopicName 
+    ftInputTopicName       :: !TopicName, 
+    ftInputFetchOffset     :: !Offset
   }
 
 packTopic :: BS.ByteString -> [Partition] -> Topic
@@ -26,23 +27,25 @@ packTopic t ps = Topic
    (fromIntegral $ length ps)
    ps
  
-packFtRequest :: BS.ByteString -> Request
-packFtRequest t = FetchRequest 
+packFtRequest :: BS.ByteString -> Offset -> Request
+packFtRequest t o = FetchRequest 
    (-1)
    0
    0
    1
-   [packTopic t [packFtPartition]]
+   [packTopic t [packFtPartition o]]
 
-packFtPartition ::Partition 
-packFtPartition = RqFtPartition
+packFtPartition ::Offset -> Partition 
+packFtPartition o = RqFtPartition
    0
-   0
+   o
    1048576
 
 packFtRqMessage :: InputFt -> RequestMessage
 packFtRqMessage iM = RequestMessage {
-       rqSize = fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest $ ftInputTopicName iM )
+       rqSize = fromIntegral $ (BL.length $ buildFetchRequest $ 
+                packFtRequest (ftInputTopicName iM) (ftInputFetchOffset iM))
+
            + 2 -- reqApiKey
            + 2 -- reqApiVersion
            + 4 -- correlationId 
@@ -53,7 +56,7 @@ packFtRqMessage iM = RequestMessage {
      , rqCorrelationId = 0
      , rqClientIdLen = fromIntegral $ BS.length $ ftInputClientId iM
      , rqClientId = ftInputClientId iM
-     , rqRequest = (packFtRequest $ ftInputTopicName iM)
+     , rqRequest = (packFtRequest (ftInputTopicName iM) (ftInputFetchOffset iM))
   }
 
 sendFtRequest :: Socket -> RequestMessage -> IO() 

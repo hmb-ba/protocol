@@ -19,6 +19,7 @@ buildList builder (x:xs) = BL.append (builder x) (buildList builder xs)
 buildRsMessage :: (Response -> BL.ByteString) -> ResponseMessage -> BL.ByteString
 buildRsMessage rsBuilder rm = runPut $ do
   putWord32be       $ rsCorrelationId rm
+  putWord32be       $ fromIntegral 0  --TODO: Unkown Word32 from original kafka response
   putWord32be       $ rsNumResponses rm
   putLazyByteString $ buildList rsBuilder $ rsResponses rm
 
