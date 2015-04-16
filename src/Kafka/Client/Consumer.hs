@@ -28,7 +28,7 @@ packTopic t ps = Topic
  
 packFtRequest :: BS.ByteString -> Request
 packFtRequest t = FetchRequest 
-   0
+   (-1)
    0
    0
    1
