@@ -75,7 +75,13 @@ Obviously the serializer is provides the opposite functionalities as the parser 
 
 #### Request
 
-As for now, we provide build functions for every kind of request. Probably a more intuitive way to do so, is to determine the type of request based on the *rqApiKey* provided in the message header - basically the same way we do for parsing. See [issue](https://github.com/hmb-ba/protocol/issues/1).
+*As for now, we provide build functions for every kind of request. Probably a more intuitive way to do so, is to determine the type of request based on the rqApiKey provided in the message header - basically the same way we do for parsing. See [issue](https://github.com/hmb-ba/protocol/issues/1).*
+
+A build function takes a type **RequestMessage** and gives a **ByteString** *(lazy)*. Here is an example with a produce request:
+
+```haskell
+let msg = buildPrRqMessage $ RequestMessage ...
+```
 
 #### Response
 
