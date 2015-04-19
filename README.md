@@ -69,6 +69,8 @@ case rqApiKey requestMessage of
 
 #### Response
 
+TODO
+
 ### Serializer
 
 Obviously the serializer is provides the opposite functionalities as the parser and was separated just for clarity. Thus we also rely on Data.Binary and use the Put Monad ([Data.Binary.Put](https://hackage.haskell.org/package/binary-0.4.3.1/docs/Data-Binary-Put.html)) to construct ByteStrings.
@@ -85,12 +87,50 @@ let msg = buildPrRqMessage $ RequestMessage ...
 
 #### Response
 
+TODO
+
 ## Client Library
 
-The client libary provides functionalities to easily implement an Apache Kafka client in Haskell. The goal of this, is to be able to setup a client without knowing too much details about the Apache Kafka protocol itself.
+The client libary provides functionalities to easily implement an Apache Kafka client in Haskell. The goal of this, is to be able to setup a client without knowing too much details about the Apache Kafka protocol itself. We therefore provide separate types to construct a message very easily. In the background we then **pack** the input to the appropriate Request/Response Message.
 
-### Consumer
+### Consumer example
 
+Using the **packFtRqMessage** (TODO: generic functio to pack, see issues) function we generate RequestMessage (FetchRequest in this case) out of a InputFT. After all, we send this request to a socket and expact a response in the format of type FetchResponse - which will be parsed using the **readFtResponse** function. 
 
+```haskell
+...
+forever $ do
+    let req = packFtRqMessage $ InputFt
+                (C.pack "myClient") -- client id
+                (C.pack "myTopic") -- topic name
+                (fromIntegral $ (read offset ::Int)) -- start offset
+    sendFtRequest sock req
+    forkIO $ do
+      input <- SBL.recv sock 4096
+      print input
+      let response = readFtResponse input
+      print response
+    threadDelay 1000000
+  ...
+```
 
-### Producer
+### Producer example
+
+Again, we first have to pack our InputMessage into a RequestMessage (in this case ProduceRequest) to further send it to a socket. In return, we expect a ProduceResponse which firt has to be parsed after we print the message to console.
+
+```haskell
+...
+forever $ do 
+    inputMessage <- getLine
+    let req = packRequest $ InputMessage 
+                (C.pack clientId) -- client id
+                (C.pack topicName) -- topic name
+                (fromIntegral 0)-- partition number
+                (C.pack inputMessage) -- payload data
+    sendRequest sock req
+
+    i <- SBL.recv sock 4096
+    response <- readProduceResponse i
+    print response 
+  ...
+```
