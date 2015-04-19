@@ -43,11 +43,22 @@ TODO: ConsumerMetadataRequest?!
 
 ### Parser
 
-Metadata API
-Produce API
-Fetch API
-Offset API
-Offset Commit/Fetch API
+As for binary serialization, we rely the [Data.Binary](https://hackage.haskell.org/package/binary-0.4.1/docs/Data-Binary.html#t:Binary) library. 
+Using the Get Monad ([Data.Binary.Get](https://hackage.haskell.org/package/binary-0.4.3.1/docs/Data-Binary-Get.html)) we are able to comfortablyparse ByteString in it's big endian network order and decode it to appropriate types.
+
+#### Request
+
+To determine the type of request, the Apache Kafka protocol describes an [Api Key](https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ApiKeys) field which holds a numeric code to determine the type of request. 
+
+We thus provide a function **readRequest** which gives an **IO RequestMessage** that allows to handle the request based on the **apiKey** field: 
+
+```haskell
+requestMessage <- readRequest i
+case rqApiKey requestMessage of
+    0  -> handleProduceRequest (rqRequest requestMessage)
+    1  -> handleFetchRequest (rqRequest requestMessage)
+    ...
+```
 
 ### Serializer
 
