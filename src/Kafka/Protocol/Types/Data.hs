@@ -32,18 +32,18 @@ data Payload = Payload
   --todo: key
   , payloadLen  :: !PayloadLength
   , payloadData :: !PayloadData
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data Message = Message 
   { crc     :: !Crc
   , payload :: Payload
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data MessageSet = MessageSet
   { offset  :: !Offset
   , len     :: !Length
   , message :: !Message 
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 ----------------------
 -- Types used for Log
