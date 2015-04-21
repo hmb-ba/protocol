@@ -1,6 +1,7 @@
 module Kafka.Protocol.Serializer.Request 
 ( 
   buildRqMessage
+, buildMessageSets
 , buildProduceRequest
 , buildPrRqMessage
 , buildFetchRequest

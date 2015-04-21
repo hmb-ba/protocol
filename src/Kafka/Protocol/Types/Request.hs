@@ -43,7 +43,7 @@ data RequestMessage = RequestMessage
   , rqClientIdLen     :: !ClientIdLen
   , rqClientId        :: !ClientId
   , rqRequest         :: Request
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data Request = ProduceRequest
   { rqPrRequiredAcks    :: !RequiredAcks
@@ -84,7 +84,7 @@ data Request = ProduceRequest
   , rqOftNumTopics                  :: !ListLength
   , rqOftTopic                      :: [Topic]
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 
 data Topic = Topic
@@ -92,7 +92,7 @@ data Topic = Topic
   , topicName       :: !TopicName
   , numPartitions   :: !ListLength
   , partitions      :: [Partition]
-  } deriving (Show)
+  } deriving (Show, Eq)
 
 data Partition =
   ----------------------
@@ -138,5 +138,5 @@ data Partition =
   RqOftPartition
   { rqOftPartitionNumber :: !PartitionNumber
   , rqOftOffset          :: !Offset
-  } deriving (Show)
+  } deriving (Show, Eq)
 

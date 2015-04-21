@@ -1,9 +1,9 @@
 module SpecHelper
     ( module Test.Hspec
-    , module Kafka.Protocol.Parser.Data
+    , module Kafka.Protocol
     , module SpecFixtures
     ) where
 
-import Kafka.Protocol.Parser.Data
+import Kafka.Protocol
 import SpecFixtures 
 import Test.Hspec

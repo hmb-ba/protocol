@@ -1,6 +1,7 @@
 module Kafka.Protocol.Parser.Request
 (readRequest,
- readRequestFromFile
+ readRequestFromFile,
+ requestMessageParser
 ) where 
 
 import Kafka.Protocol.Types
