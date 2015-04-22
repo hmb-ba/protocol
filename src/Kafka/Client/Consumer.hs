@@ -1,23 +1,15 @@
 module Kafka.Client.Consumer 
 ( encodeRequest
-, sendFtRequest
-, readFtResponse
-,InputFt (..) 
+, decodeFtResponse
+, packFtRqMessage
 ) where
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BC
-import Network.Socket
-import qualified Network.Socket.ByteString.Lazy as SBL
 import Data.Binary.Get
 import Kafka.Protocol
 
-data InputFt = InputFt
-  { ftInputClientId        :: !ClientId,
-    ftInputTopicName       :: !TopicName, 
-    ftInputFetchOffset     :: !Offset
-  }
 
 packTopic :: BS.ByteString -> [Partition] -> Topic
 packTopic t ps = Topic
@@ -57,15 +49,12 @@ packFtRqMessage (apiV, corr, client, topic, offset) = RequestMessage {
      , rqRequest = packFtRequest (BC.pack topic) (fromIntegral offset)
   }
 
--- this should take all neccessary arguments to build a RequestMessage (excl. len ect)
+-------------------
+-- Encode / Decode
+-------------------
+
 encodeRequest :: (Int, Int, Int, String, String, Int) -> RequestMessage
 encodeRequest (1, apiV, corr, client, topic, offset) = packFtRqMessage (apiV, corr, client, topic, offset)
 
-sendFtRequest :: Socket -> RequestMessage -> IO()
-sendFtRequest socket requestMessage = do
-    SBL.sendAll socket msg
-    where msg = case (rqApiKey requestMessage) of
-                    1 -> buildFtRqMessage requestMessage
-
-readFtResponse :: BL.ByteString -> ResponseMessage
-readFtResponse b = runGet fetchResponseMessageParser b
+decodeFtResponse :: BL.ByteString -> ResponseMessage
+decodeFtResponse b = runGet fetchResponseMessageParser b
