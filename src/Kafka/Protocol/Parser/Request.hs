@@ -1,7 +1,5 @@
 module Kafka.Protocol.Parser.Request
-(readRequest,
- readRequestFromFile,
- requestMessageParser
+( requestMessageParser
 ) where 
 
 import Kafka.Protocol.Types
@@ -110,13 +108,4 @@ requestMessageParser = do
     3 -> metadataRequestParser
   --request <- produceRequestParser
   return $ RequestMessage requestSize apiKey apiVersion correlationId clientIdLen clientId request
-
-readRequest :: BL.ByteString -> IO RequestMessage
-readRequest a = do 
-  return (runGet requestMessageParser a)
-
-readRequestFromFile :: String -> IO RequestMessage --Temp
-readRequestFromFile a = do 
-  input <- BL.readFile a 
-  return (runGet requestMessageParser input)
 

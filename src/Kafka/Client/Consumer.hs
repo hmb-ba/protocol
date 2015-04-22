@@ -1,5 +1,5 @@
 module Kafka.Client.Consumer 
-( packFtRqMessage
+( encodeRequest
 , sendFtRequest
 , readFtResponse
 ,InputFt (..) 
@@ -11,7 +11,6 @@ import qualified Data.ByteString.Char8 as BC
 import Network.Socket
 import qualified Network.Socket.ByteString.Lazy as SBL
 import Data.Binary.Get
-
 import Kafka.Protocol
 
 data InputFt = InputFt
@@ -41,28 +40,32 @@ packFtPartition o = RqFtPartition
    o
    1048576
 
-packFtRqMessage :: InputFt -> RequestMessage
-packFtRqMessage iM = RequestMessage {
-       rqSize = fromIntegral $ (BL.length $ buildFetchRequest $ 
-                packFtRequest (ftInputTopicName iM) (ftInputFetchOffset iM))
-
-           + 2 -- reqApiKey
-           + 2 -- reqApiVersion
-           + 4 -- correlationId 
-           + 2 -- clientIdLen
-           + (fromIntegral $ BS.length $ ftInputClientId iM) --clientId
+packFtRqMessage :: (Int, Int, String, String, Int) -> RequestMessage
+packFtRqMessage (apiV, corr, client, topic, offset) = RequestMessage {
+       rqSize = (fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral offset))
+                              + 2 -- reqApiKey
+                              + 2 -- reqApiVersion
+                              + 4 -- correlationId 
+                              + 2 -- clientIdLen
+                              + (fromIntegral $ length client) -- clientId
+                )
      , rqApiKey = 1
-     , rqApiVersion = 0
-     , rqCorrelationId = 0
-     , rqClientIdLen = fromIntegral $ BS.length $ ftInputClientId iM
-     , rqClientId = ftInputClientId iM
-     , rqRequest = (packFtRequest (ftInputTopicName iM) (ftInputFetchOffset iM))
+     , rqApiVersion = fromIntegral apiV
+     , rqCorrelationId = fromIntegral corr
+     , rqClientIdLen = fromIntegral $ length client
+     , rqClientId = BC.pack client
+     , rqRequest = packFtRequest (BC.pack topic) (fromIntegral offset)
   }
 
-sendFtRequest :: Socket -> RequestMessage -> IO() 
-sendFtRequest socket requestMessage = do 
-  let msg = buildFtRqMessage requestMessage
-  SBL.sendAll socket msg
+-- this should take all neccessary arguments to build a RequestMessage (excl. len ect)
+encodeRequest :: (Int, Int, Int, String, String, Int) -> RequestMessage
+encodeRequest (1, apiV, corr, client, topic, offset) = packFtRqMessage (apiV, corr, client, topic, offset)
+
+sendFtRequest :: Socket -> RequestMessage -> IO()
+sendFtRequest socket requestMessage = do
+    SBL.sendAll socket msg
+    where msg = case (rqApiKey requestMessage) of
+                    1 -> buildFtRqMessage requestMessage
 
 readFtResponse :: BL.ByteString -> ResponseMessage
 readFtResponse b = runGet fetchResponseMessageParser b
