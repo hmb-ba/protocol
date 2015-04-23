@@ -5,6 +5,8 @@ import Data.Binary.Get
 import qualified Data.ByteString.Lazy.Char8 as BL 
 import qualified Data.ByteString.Char8 as BS
 
+import Kafka.Client 
+
 spec :: Spec 
 spec = do 
   describe "Kafka.Protocol" $ do
@@ -77,5 +79,11 @@ testSerializeParseMessageSet m = (runGet messageSetParser $ buildMessageSet m) `
 testSerializeParsePrReq :: RequestMessage -> Expectation
 testSerializeParsePrReq req = (runGet requestMessageParser $ buildPrRqMessage req) `shouldBe` req
 
+testErrorHandling :: RequestMessage ->  IO()
+testErrorHandling req = do  
+  req <- (decodePrResponse' $ buildPrRqMessage req)
+  case req of
+    Left s -> putStrLn "error"
+    Right req -> putStrLn "success"
 
 

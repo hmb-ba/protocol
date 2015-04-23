@@ -44,15 +44,8 @@ buildProduceResponse e = runPut $ do
   putWord32be $ rsPrNumErrors e 
   putLazyByteString $ buildRsPrErrors $ rsPrErrors e
 
-buildProduceResponses :: [Response] -> BL.ByteString
-buildProduceResponses [] = BL.empty 
-buildProduceResponses (x:xs) = BL.append (buildProduceResponse x) (buildProduceResponses xs)
-
 buildPrResponseMessage :: ResponseMessage -> BL.ByteString
-buildPrResponseMessage e = runPut $ do 
-  putWord32be $ rsCorrelationId e 
-  putWord32be $ rsNumResponses e 
-  putLazyByteString $ buildProduceResponses $ rsResponses e 
+buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
 
 --------------------
 -- FetchResponse
