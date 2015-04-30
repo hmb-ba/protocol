@@ -16,11 +16,11 @@ getPayloadFixture s = Payload 0 0 0 (fromIntegral $ length s) (BS.pack s)
 getRequestMessageFixture :: Request -> RequestMessage
 getRequestMessageFixture r = RequestMessage 1000 0 0 1 (fromIntegral $ length "ClientId") (BS.pack "ClientId") r
 
-getProduceRequestFixture :: [Topic] -> Request 
+getProduceRequestFixture :: [RqTopic] -> Request 
 getProduceRequestFixture ts = ProduceRequest 0 0 (fromIntegral $ length ts) ts
 
-getTopicFixture :: [Char] -> [Partition] -> Topic 
-getTopicFixture s ps = Topic (fromIntegral $ length s) (BS.pack s) (fromIntegral $ length ps) ps
+getTopicFixture :: [Char] -> [Partition] -> RqTopic 
+getTopicFixture s ps = RqTopic (fromIntegral $ length s) (BS.pack s) (fromIntegral $ length ps) ps
 
 getRqPrPartitionFixture :: [MessageSet] -> Partition 
 getRqPrPartitionFixture ms = RqPrPartition 0 (fromIntegral $ BL.length $ buildMessageSets ms ) ms
