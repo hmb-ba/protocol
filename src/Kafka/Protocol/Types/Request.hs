@@ -3,6 +3,7 @@ module Kafka.Protocol.Types.Request
 , Request (..)
 , Partition (..)
 , Topic (..)
+, RqTopicName (..)
 )
  where
 
@@ -52,7 +53,9 @@ data Request = ProduceRequest
   , rqPrTopics          :: [Topic]
   }
   | MetadataRequest
-  { rqMdTopicNames      :: [TopicName] } --todo: shall we add numtopics as a record too?
+  { rqMdNumTopics       :: !ListLength
+  , rqMdTopicNames      :: [RqTopicName]
+  }
   | FetchRequest
   { rqFtReplicaId       :: !ReplicaId
   , rqFtMaxWaitTime     :: !MaxWaitTime
@@ -86,12 +89,15 @@ data Request = ProduceRequest
   }
   deriving (Show, Eq)
 
-
 data Topic = Topic
-  { topicNameLen    :: !StringLength
-  , topicName       :: !TopicName
+  { rqTopicName       :: !RqTopicName
   , numPartitions   :: !ListLength
   , partitions      :: [Partition]
+  } deriving (Show, Eq)
+
+data RqTopicName = RqTopicName
+  { topicNameLen    :: !StringLength
+  , topicName       :: !TopicName
   } deriving (Show, Eq)
 
 data Partition =

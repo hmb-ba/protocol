@@ -37,8 +37,7 @@ packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
                           (fromIntegral $ length [packTopic])
                           [packTopic]
         packTopic = Topic
-                          (fromIntegral $ length topic)
-                          (BC.pack topic)
+                          (RqTopicName (fromIntegral $ length topic) (BC.pack topic))
                           (fromIntegral $ length [packPartition])
                           ([packPartition])
         packPartition = RqPrPartition

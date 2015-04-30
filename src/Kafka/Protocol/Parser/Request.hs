@@ -19,20 +19,19 @@ parseList i p = do
             return (x:xs)
 
 
-topicNameParser :: Get TopicName
+topicNameParser :: Get RqTopicName
 topicNameParser = do 
   topicNameLen  <- getWord16be
   topicName     <- getByteString $ fromIntegral topicNameLen
-  return topicName
+  return $ RqTopicName topicNameLen topicName 
 
 
 topicParser :: (Get Partition) -> Get Topic 
 topicParser p = do 
-  topicNameLen  <- getWord16be
-  topicName     <- getByteString $ fromIntegral topicNameLen
+  topicName <- topicNameParser
   numPartitions <- getWord32be
   partitions    <- parseList (fromIntegral numPartitions) p
-  return $ Topic topicNameLen topicName numPartitions partitions
+  return $ Topic topicName numPartitions partitions
 
 ------------------------
 -- Produce Request (Pr)
@@ -79,19 +78,33 @@ fetchRequestParser = do
   topics        <- parseList (fromIntegral numTopics) (topicParser rqFtPartitionParser)
   return $ FetchRequest replicaId maxWaitTime minBytes numTopics topics
 
-
 ------------------------
 -- Metadata Request (Md)
 ------------------------
-
 metadataRequestParser :: Get Request
 metadataRequestParser = do 
-  numTopicNames <- getWord32be
-  topics        <- parseList (fromIntegral numTopicNames) topicNameParser
-  return $ MetadataRequest topics
+  numTopics     <- getWord32be 
+  topicNames    <- parseList (fromIntegral numTopics) topicNameParser
+  return $ MetadataRequest numTopics topicNames
 
 ------------------------
--- Request Message (Rq)
+-- Offset Request (Of)
+------------------------
+offsetRequestParser :: Get Request
+offsetRequestParser = do 
+  replicaId     <- getWord32be 
+  numTopics     <- getWord32be
+  topics        <- parseList (fromIntegral numTopics) (topicParser rqOfPartitionParser)
+  return $ OffsetRequest replicaId numTopics topics
+
+rqOfPartitionParser :: Get Partition
+rqOfPartitionParser = do 
+  partition     <- getWord32be
+  time          <- getWord64be 
+  maxNumOfOf    <- getWord32be
+  return $ RqOfPartition partition time maxNumOfOf
+------------------------
+-- Request Message Header (Rq)
 ------------------------
 
 requestMessageParser :: Get RequestMessage 

@@ -13,8 +13,7 @@ import Kafka.Protocol
 
 packTopic :: BS.ByteString -> [Partition] -> Topic
 packTopic t ps = Topic
-   (fromIntegral $ BS.length t)
-   t
+   (RqTopicName (fromIntegral $ BS.length t) t)
    (fromIntegral $ length ps)
    ps
  

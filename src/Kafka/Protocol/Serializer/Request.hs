@@ -28,6 +28,17 @@ buildRqMessage e rb = runPut $ do
   putByteString $ rqClientId e 
   putLazyByteString $ rb $ rqRequest e
 
+buildTopic :: (Partition -> BL.ByteString) -> Topic -> BL.ByteString
+buildTopic pb t = runPut $ do
+  putLazyByteString     $ buildRqTopicName $ rqTopicName t 
+  putWord32be       $ numPartitions t
+  putLazyByteString $ foldl (\acc p -> BL.append acc (pb p)) BL.empty $ partitions t
+
+buildRqTopicName :: RqTopicName -> BL.ByteString
+buildRqTopicName e = runPut $ do
+  putWord16be         $ topicNameLen e
+  putByteString       $ topicName e 
+
 -------------------------------
 -- Produce Request
 -------------------------------
@@ -47,8 +58,7 @@ buildRqPrPartitions (x:xs) = BL.append (buildRqPrPartition x) (buildRqPrPartitio
 
 buildRqPrTopic :: Topic -> BL.ByteString 
 buildRqPrTopic e = runPut $  do 
-  putWord16be $ topicNameLen e 
-  putByteString $ topicName e
+  putLazyByteString   $ buildRqTopicName $ rqTopicName e 
   putWord32be $ numPartitions e 
   putLazyByteString $ buildRqPrPartitions $ partitions e 
 
@@ -76,13 +86,6 @@ buildRqFtPartition p = runPut $ do
   putWord64be $ rqFtFetchOffset p
   putWord32be $ rqFtMaxBytes p
 
-buildTopic :: (Partition -> BL.ByteString) -> Topic -> BL.ByteString
-buildTopic pb t = runPut $ do
-  putWord16be       $ topicNameLen t
-  putByteString     $ topicName t
-  putWord32be       $ numPartitions t
-  putLazyByteString $ foldl (\acc p -> BL.append acc (pb p)) BL.empty $ partitions t
-
 buildFetchRequest :: Request -> BL.ByteString
 buildFetchRequest e = runPut $ do 
   putWord32be $ rqFtReplicaId e 
@@ -94,3 +97,31 @@ buildFetchRequest e = runPut $ do
 buildFtRqMessage :: RequestMessage -> BL.ByteString
 buildFtRqMessage rm = buildRqMessage rm buildFetchRequest
 
+-------------------------------
+-- Metadata Request
+-------------------------------
+buildMetadataRequest :: Request -> BL.ByteString 
+buildMetadataRequest e = runPut $ do 
+  putWord32be $ rqMdNumTopics e 
+  putLazyByteString $ foldl (\acc t -> BL.append acc (buildRqTopicName t)) BL.empty $ rqMdTopicNames e
+
+buildMdRqMessage :: RequestMessage -> BL.ByteString
+buildMdRqMessage rm = buildRqMessage rm buildMetadataRequest
+
+-------------------------------
+-- Offset Request
+-------------------------------
+buildRqOfPartition :: Partition -> BL.ByteString
+buildRqOfPartition e = runPut $ do 
+  putWord32be     $ rqOfPartitionNumber e 
+  putWord64be     $ rqOfTime e 
+  putWord32be     $ rqOfMaxNumOffset e
+
+buildOffsetRequest :: Request -> BL.ByteString 
+buildOffsetRequest e = runPut $ do 
+  putWord32be     $ rqOfReplicaId e 
+  putWord32be     $ rqOfNumTopics e
+  putLazyByteString $ foldl (\acc t -> BL.append acc (buildTopic buildRqOfPartition t)) BL.empty $ rqOfTopics e
+
+buildOfRqMessage :: RequestMessage -> BL.ByteString
+buildOfRqMessage rm = buildRqMessage rm buildOffsetRequest 
