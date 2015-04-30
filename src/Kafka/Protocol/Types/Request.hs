@@ -2,7 +2,7 @@ module Kafka.Protocol.Types.Request
 ( RequestMessage (..)
 , Request (..)
 , Partition (..)
-, Topic (..)
+, RqTopic (..)
 , RqTopicName (..)
 )
  where
@@ -50,7 +50,7 @@ data Request = ProduceRequest
   { rqPrRequiredAcks    :: !RequiredAcks
   , rqPrTimeout         :: !Timeout
   , rqPrNumTopics       :: !ListLength
-  , rqPrTopics          :: [Topic]
+  , rqPrTopics          :: [RqTopic]
   }
   | MetadataRequest
   { rqMdNumTopics       :: !ListLength
@@ -61,12 +61,12 @@ data Request = ProduceRequest
   , rqFtMaxWaitTime     :: !MaxWaitTime
   , rqFtMinBytes        :: !MinBytes
   , rqFtNumTopics       :: !ListLength
-  , rqFtTopics          :: ![Topic]
+  , rqFtTopics          :: ![RqTopic]
   }
   | OffsetRequest
   { rqOfReplicaId       :: !ReplicaId
   , rqOfNumTopics       :: !ListLength
-  , rqOfTopics          :: ![Topic]
+  , rqOfTopics          :: ![RqTopic]
   }
   | ConsumerMetadataRquest
   { rqCmConsumerGroupLen   :: !StringLength
@@ -79,18 +79,19 @@ data Request = ProduceRequest
   , rqOcConsumerId                  :: !ConsumerId
   , rqOcRetentionTime               :: !RetentionTime
   , rqOcNumTopics                   :: !ListLength
-  , rqOcTopic                       :: [Topic]
+  , rqOcTopic                       :: [RqTopic]
   }
   | OffsetFetchRequest
   { rqOftConsumerGroupLen           :: !StringLength
   , rqOftConsumerGroup              :: !ConsumerGroup
   , rqOftNumTopics                  :: !ListLength
-  , rqOftTopic                      :: [Topic]
+  , rqOftTopic                      :: [RqTopic]
   }
   deriving (Show, Eq)
 
-data Topic = Topic
-  { rqTopicName       :: !RqTopicName
+data RqTopic = RqTopic
+  { rqTopicNameLen    :: !StringLength
+  , rqTopicName       :: !TopicName
   , numPartitions   :: !ListLength
   , partitions      :: [Partition]
   } deriving (Show, Eq)

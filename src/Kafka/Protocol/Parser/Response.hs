@@ -17,23 +17,28 @@ parseList i p = do
             xs <- parseList (i-1) p
             return (x:xs)
 
+rsTopicParser :: (Get RsPayload) -> Get RsTopic 
+rsTopicParser p = do 
+  topicNameLen <- getWord16be
+  topicName <- getByteString $ fromIntegral topicNameLen
+  numPayloads <- getWord32be
+  payloads <- parseList (fromIntegral numPayloads) p
+  return $ RsTopic topicNameLen topicName numPayloads payloads
+
 ---------------------
 -- Produce Response (Pr)
 ---------------------
-rsPrErrorParser :: Get RsPrError 
+rsPrErrorParser :: Get RsPayload 
 rsPrErrorParser= do 
   partitionNumber <- getWord32be
   errorCode <- getWord16be 
   offset <- getWord64be 
-  return $! RsPrError partitionNumber errorCode offset
+  return $! RsPrPayload partitionNumber errorCode offset
 
 produceResponseParser :: Get Response
 produceResponseParser = do 
-  topicNameLen <- getWord16be
-  topicsName <- getByteString $ fromIntegral topicNameLen
-  numErrors <- getWord32be
-  errors <- parseList (fromIntegral numErrors) rsPrErrorParser
-  return $! ProduceResponse topicNameLen topicsName numErrors errors
+  topic <- rsTopicParser rsPrErrorParser
+  return $! ProduceResponse topic
 
 produceResponseMessageParser :: Get ResponseMessage
 produceResponseMessageParser = do 

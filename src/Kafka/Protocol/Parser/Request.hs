@@ -26,12 +26,13 @@ topicNameParser = do
   return $ RqTopicName topicNameLen topicName 
 
 
-topicParser :: (Get Partition) -> Get Topic 
+topicParser :: (Get Partition) -> Get RqTopic 
 topicParser p = do 
-  topicName <- topicNameParser
+  topicNameLen  <- getWord16be
+  topicName     <- getByteString $ fromIntegral topicNameLen
   numPartitions <- getWord32be
   partitions    <- parseList (fromIntegral numPartitions) p
-  return $ Topic topicName numPartitions partitions
+  return $ RqTopic topicNameLen topicName numPartitions partitions
 
 ------------------------
 -- Produce Request (Pr)

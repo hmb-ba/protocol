@@ -28,9 +28,10 @@ buildRqMessage e rb = runPut $ do
   putByteString $ rqClientId e 
   putLazyByteString $ rb $ rqRequest e
 
-buildTopic :: (Partition -> BL.ByteString) -> Topic -> BL.ByteString
+buildTopic :: (Partition -> BL.ByteString) -> RqTopic -> BL.ByteString
 buildTopic pb t = runPut $ do
-  putLazyByteString     $ buildRqTopicName $ rqTopicName t 
+  putWord16be         $ rqTopicNameLen t
+  putByteString       $ rqTopicName t 
   putWord32be       $ numPartitions t
   putLazyByteString $ foldl (\acc p -> BL.append acc (pb p)) BL.empty $ partitions t
 
@@ -52,26 +53,12 @@ buildRqPrPartition e = runPut $ do
   putWord32be $ rqPrMessageSetSize e
   putLazyByteString $ buildMessageSets $ rqPrMessageSet e
 
-buildRqPrPartitions :: [Partition] -> BL.ByteString
-buildRqPrPartitions [] = BL.empty
-buildRqPrPartitions (x:xs) = BL.append (buildRqPrPartition x) (buildRqPrPartitions xs) 
-
-buildRqPrTopic :: Topic -> BL.ByteString 
-buildRqPrTopic e = runPut $  do 
-  putLazyByteString   $ buildRqTopicName $ rqTopicName e 
-  putWord32be $ numPartitions e 
-  putLazyByteString $ buildRqPrPartitions $ partitions e 
-
-buildRqPrTopics :: [Topic] -> BL.ByteString
-buildRqPrTopics [] = BL.empty 
-buildRqPrTopics (x:xs) = BL.append (buildRqPrTopic x) (buildRqPrTopics xs)
-
 buildProduceRequest :: Request -> BL.ByteString
 buildProduceRequest e = runPut $ do 
   putWord16be $ rqPrRequiredAcks e
   putWord32be $ rqPrTimeout e 
   putWord32be $ rqPrNumTopics e 
-  putLazyByteString $ buildRqPrTopics $ rqPrTopics e
+  putLazyByteString $ foldl (\acc t -> BL.append acc (buildTopic buildRqPrPartition t)) BL.empty $ rqPrTopics e
 
 buildPrRqMessage :: RequestMessage -> BL.ByteString
 buildPrRqMessage rm = buildRqMessage rm buildProduceRequest

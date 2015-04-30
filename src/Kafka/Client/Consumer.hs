@@ -11,9 +11,10 @@ import Data.Binary.Get
 import Kafka.Protocol
 
 
-packTopic :: BS.ByteString -> [Partition] -> Topic
-packTopic t ps = Topic
-   (RqTopicName (fromIntegral $ BS.length t) t)
+packTopic :: BS.ByteString -> [Partition] -> RqTopic
+packTopic t ps = RqTopic
+   (fromIntegral $ BS.length t)
+   t
    (fromIntegral $ length ps)
    ps
  

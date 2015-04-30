@@ -23,32 +23,31 @@ buildRsMessage rsBuilder rm = runPut $ do
   putWord32be       $ rsNumResponses rm
   putLazyByteString $ buildList rsBuilder $ rsResponses rm
 
+buildRsTopic :: (RsPayload -> BL.ByteString) -> RsTopic -> BL.ByteString 
+buildRsTopic b t = runPut $ do 
+  putWord16be $ rsTopicNameLen t 
+  putByteString $ rsTopicName t
+  putWord32be $ rsNumPayloads t 
+  putLazyByteString $ foldl(\acc p -> BL.append acc (b p)) BL.empty $ rsPayloads t
+
 --------------------
 -- Produce Response (Pr)
 --------------------
-buildRsPrError :: RsPrError -> BL.ByteString 
-
-buildRsPrError e = runPut $ do 
+buildRsPrPayload :: RsPayload -> BL.ByteString 
+buildRsPrPayload e = runPut $ do 
   putWord32be $ rsPrPartitionNumber e
   putWord16be $ rsPrCode e 
   putWord64be $ rsPrOffset e 
 
-buildRsPrErrors :: [RsPrError] -> BL.ByteString
-buildRsPrErrors [] = BL.empty
-buildRsPrErrors (x:xs) = BL.append (buildRsPrError x) (buildRsPrErrors xs)
-
 buildProduceResponse :: Response -> BL.ByteString
 buildProduceResponse e = runPut $ do 
-  putWord16be $ rsPrTopicNameLen e 
-  putByteString $ rsPrTopicName e
-  putWord32be $ rsPrNumErrors e 
-  putLazyByteString $ buildRsPrErrors $ rsPrErrors e
+  putLazyByteString $ buildRsTopic buildRsPrPayload $ rsPrTopic e 
 
 buildPrResponseMessage :: ResponseMessage -> BL.ByteString
 buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
 
 --------------------
--- FetchResponse
+-- Fetch Response (Ft)
 --------------------
 buildFtPayload :: RsFtPayload -> BL.ByteString
 buildFtPayload p = runPut $ do 
@@ -66,7 +65,25 @@ buildFtRs rs = runPut $ do
   putWord32be       $ rsFtNumsPayloads rs
   putLazyByteString $ buildList buildFtPayload $ rsFtPayloads rs
 
-
 buildFtRsMessage :: ResponseMessage -> BL.ByteString
 buildFtRsMessage rm = buildRsMessage buildFtRs rm
 
+--------------------
+-- Offset Response (Of)
+--------------------
+buildRsOfPartitionOf :: RsOfPartitionOf -> BL.ByteString
+buildRsOfPartitionOf p = runPut $ do 
+  putWord32be     $ rsOfPartitionNumber p
+  putWord64be     $ rsOfErrorCode p
+  putWord32be     $ rsOfNumOffsets p
+  putLazyByteString $ foldl (\acc o -> BL.append acc (runPut $ putWord64be $ o)) BL.empty $ rsOfOffsets p
+
+buildOfRs :: Response -> BL.ByteString
+buildOfRs rs = runPut $ do 
+  putWord16be       $ rsOfTopicNameLen rs
+  putLazyByteString $ BL.fromStrict(rsOfTopicName rs) 
+  putWord32be       $ rsOfNumPartitionOfs rs 
+  putLazyByteString $ foldl (\acc p -> BL.append acc (buildRsOfPartitionOf p)) BL.empty $ rsOfPartitionOfs rs
+
+buildOfRsMessage :: ResponseMessage -> BL.ByteString
+buildOfRsMessage rm = buildRsMessage buildOfRs rm 
