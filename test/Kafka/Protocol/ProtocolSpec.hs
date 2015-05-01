@@ -79,11 +79,5 @@ testSerializeParseMessageSet m = (runGet messageSetParser $ buildMessageSet m) `
 testSerializeParsePrReq :: RequestMessage -> Expectation
 testSerializeParsePrReq req = (runGet requestMessageParser $ buildPrRqMessage req) `shouldBe` req
 
-testErrorHandling :: RequestMessage ->  IO()
-testErrorHandling req = do  
-  req <- (decodePrResponse' $ buildPrRqMessage req)
-  case req of
-    Left s -> putStrLn "error"
-    Right req -> putStrLn "success"
 
 
