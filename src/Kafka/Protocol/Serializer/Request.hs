@@ -6,6 +6,8 @@ module Kafka.Protocol.Serializer.Request
 , buildPrRqMessage
 , buildFetchRequest
 , buildFtRqMessage
+, buildMdRqMessage
+, buildMetadataRequest 
 ) where 
 
 import Data.Binary.Put

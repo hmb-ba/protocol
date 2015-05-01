@@ -2,9 +2,9 @@ module Kafka.Protocol.Types.Response
 ( Response (..)
 , ResponseMessage (..)
 , RsPayload (..)
-, RsFtPayload (..)
 , RsOfPartitionOf (..)
 , RsTopic (..)
+, RsMdPartitionMetadata (..)
 ) where
 
 import Data.Word
@@ -38,15 +38,15 @@ data Response = ProduceResponse
   }
   | MetadataResponse
   { rsMdNumBroker       :: !ListLength
-  , rsMdBrokers         :: ![RsMdBroker]
+  , rsMdBrokers         :: ![RsPayload]
   , rsMdNumTopicMd      :: !ListLength
-  , rsMdTopicMetadata   :: ![RsMdTopicMetadata]
+  , rsMdTopicMetadata   :: ![RsPayload]
   }
   | FetchResponse
   { rsFtTopicNameLen     :: !StringLength
   , rsFtTopicName        :: !TopicName
   , rsFtNumsPayloads     :: !ListLength
-  , rsFtPayloads         :: [RsFtPayload]
+  , rsFtPayloads         :: [RsPayload]
   }
   | OffsetResponse
   { rsOfTopicNameLen    ::  !StringLength
@@ -104,42 +104,46 @@ data RsPayload =
   , rsOftMetadataLen      :: !StringLength
   , rsOftMetadata         :: !RsOftMetadata
   , rsOftErrorCode        :: !ErrorCode
-  } deriving (Show)
-
---------------------
--- Metadata Response (Mt)
---------------------
-data RsMdBroker = RsMdBroker
-  { rsMdNodeId          :: !RsNodeId
-  , rsMdHost            :: !RsMdHost
-  , rsMdPort            :: !RsMdPort
-  } deriving (Show)
-
-data RsMdTopicMetadata = RsMdTopicMetadata
-  { rsMdTopicErrorCode  :: !ErrorCode
-  , rsMdTopicNameLen    :: !StringLength
-  , rsMdTopicName       :: !TopicName
-  , rsMdNumPartitionMd  :: !ListLength
-  , rsMdPartitionMd     :: [RsMdPartitionMetadata]
-  } deriving (Show)
-
-data RsMdPartitionMetadata = RsMdPartitionMetadata
-  { rsMdPartitionErrorCode :: !ErrorCode
-  , rsMdPartitionId        :: !PartitionNumber
-  , rsMdLeader             :: !RsNodeId
-  , rsMdReplicas           :: [RsNodeId]
-  , rsMdIsr                :: [RsNodeId]
-  } deriving (Show)
-
--------------------
--- Fetch Response (Ft)
--------------------
-data RsFtPayload = RsFtPayload
+  }
+  |
+  -------------------
+  -- Fetch Response (Ft)
+  -------------------
+  RsFtPayload
   { rsFtPartitionNumber  :: !PartitionNumber
   , rsFtErrorCode        :: !ErrorCode
   , rsFtHwMarkOffset     :: !HightwaterMarkOffset
   , rsFtMessageSetSize   :: !MessageSetSize
   , rsFtMessageSets      :: [MessageSet]
+  } 
+  |
+  --------------------
+  -- Metadata Response (Mt)
+  --------------------
+  RsMdPayloadBroker
+  { rsMdNodeId          :: !RsNodeId
+  , rsMdHostLen         :: !StringLength
+  , rsMdHost            :: !RsMdHost
+  , rsMdPort            :: !RsMdPort
+  }
+  |
+  RsMdPayloadTopic
+  { rsMdTopicErrorCode  :: !ErrorCode
+  , rsMdTopicNameLen    :: !StringLength
+  , rsMdTopicName       :: !TopicName
+  , rsMdNumPartitionMd  :: !ListLength
+  , rsMdPartitionMd     :: [RsMdPartitionMetadata]
+  }
+  deriving (Show)
+
+data RsMdPartitionMetadata = RsMdPartitionMetadata
+  { rsMdPartitionErrorCode :: !ErrorCode
+  , rsMdPartitionId        :: !PartitionNumber
+  , rsMdLeader             :: !RsNodeId
+  , rsMdNumReplicas        :: !ListLength
+  , rsMdReplicas           :: [RsNodeId]
+  , rsMdNumIsrs            :: !ListLength
+  , rsMdIsrs                :: [RsNodeId]
   } deriving (Show)
 
 -------------------

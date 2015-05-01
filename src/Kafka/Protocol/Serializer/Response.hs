@@ -1,6 +1,7 @@
 module Kafka.Protocol.Serializer.Response
 ( buildPrResponseMessage
 , buildFtRsMessage
+, buildMdRsMessage
 ) where 
 
 import qualified Data.ByteString as BS
@@ -49,7 +50,7 @@ buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
 --------------------
 -- Fetch Response (Ft)
 --------------------
-buildFtPayload :: RsFtPayload -> BL.ByteString
+buildFtPayload :: RsPayload -> BL.ByteString
 buildFtPayload p = runPut $ do 
   putWord32be       $ rsFtPartitionNumber p
   putWord16be       $ rsFtErrorCode p
@@ -87,3 +88,42 @@ buildOfRs rs = runPut $ do
 
 buildOfRsMessage :: ResponseMessage -> BL.ByteString
 buildOfRsMessage rm = buildRsMessage buildOfRs rm 
+
+--------------------
+-- Metadata Response (Md)
+--------------------
+buildRsMdPartitionMetadata :: RsMdPartitionMetadata -> BL.ByteString
+buildRsMdPartitionMetadata p = runPut $ do 
+  putWord16be   $ rsMdPartitionErrorCode p
+  putWord32be   $ rsMdPartitionId p
+  putWord32be   $ rsMdLeader p
+  putWord32be   $ rsMdNumReplicas p 
+  putLazyByteString $ foldl (\acc r -> BL.append acc (runPut $ putWord32be r)) BL.empty $ rsMdReplicas p 
+  putWord32be  $ rsMdNumIsrs p 
+  putLazyByteString $ foldl (\acc r -> BL.append acc (runPut $ putWord32be r)) BL.empty $ rsMdIsrs p
+
+buildRsMdPayloadTopic :: RsPayload -> BL.ByteString
+buildRsMdPayloadTopic t = runPut $ do 
+  putWord16be   $ rsMdTopicErrorCode t
+  putWord16be   $ rsMdTopicNameLen t
+  putLazyByteString $ BL.fromStrict $ rsMdTopicName t
+  putWord32be   $ rsMdNumPartitionMd t
+  putLazyByteString $ foldl (\acc p -> BL.append acc (buildRsMdPartitionMetadata p)) BL.empty $ rsMdPartitionMd t
+
+buildRsMdPayloadBroker :: RsPayload -> BL.ByteString
+buildRsMdPayloadBroker p = runPut $ do 
+  putWord32be    $ rsMdNodeId p 
+  putWord16be    $ rsMdHostLen p
+  putLazyByteString $ BL.fromStrict(rsMdHost p)
+  putWord32be   $ rsMdPort p
+
+buildMdRs :: Response -> BL.ByteString
+buildMdRs rs = runPut $ do 
+  putWord32be     $  rsMdNumBroker rs
+  putLazyByteString $ foldl (\acc b -> BL.append acc (buildRsMdPayloadBroker b)) BL.empty $ rsMdBrokers rs
+  putWord32be     $ rsMdNumTopicMd rs 
+  putLazyByteString $ foldl (\acc b -> BL.append acc (buildRsMdPayloadTopic b)) BL.empty $ rsMdTopicMetadata rs
+
+buildMdRsMessage :: ResponseMessage -> BL.ByteString
+buildMdRsMessage rm = buildRsMessage buildMdRs rm 
+

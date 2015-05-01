@@ -1,7 +1,7 @@
 module Kafka.Client.Consumer 
-( encodeFtRequest
-, decodeFtResponse
+( decodeFtResponse
 , packFtRqMessage
+, encodeFtRequest
 ) where
 
 import qualified Data.ByteString as BS
@@ -32,7 +32,7 @@ packFtPartition p o = RqFtPartition
    o
    1048576
 
-packFtRqMessage :: (Int, Int, String, String, Int, Int) -> RequestMessage
+packFtRqMessage :: (Int, Int, [Char], [Char], Int, Int) -> RequestMessage
 packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage {
        rqSize = (fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset))
                               + 2 -- reqApiKey
