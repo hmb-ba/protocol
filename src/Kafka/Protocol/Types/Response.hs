@@ -1,8 +1,10 @@
 module Kafka.Protocol.Types.Response
 ( Response (..)
 , ResponseMessage (..)
-, RsPrError (..)
-, RsFtPayload (..)
+, RsPayload (..)
+, RsOfPartitionOf (..)
+, RsTopic (..)
+, RsMdPartitionMetadata (..)
 ) where
 
 import Data.Word
@@ -12,6 +14,7 @@ import Kafka.Protocol.Types.Data
 import Kafka.Protocol.Types.Common
 
 type ErrorCode = Word16
+type ErrorCode64 = Word64
 type HightwaterMarkOffset = Word64
 
 type RsNodeId = Word32
@@ -30,29 +33,27 @@ data ResponseMessage = ResponseMessage
   } deriving (Show)
 
 data Response = ProduceResponse
-  { rsPrTopicNameLen    :: !StringLength
-  , rsPrTopicName       :: !TopicName
-  , rsPrNumErrors       :: !ListLength
-  , rsPrErrors          :: [RsPrError]
+  {
+    rsPrTopic          :: !RsTopic
   }
   | MetadataResponse
   { rsMdNumBroker       :: !ListLength
-  , rsMdBrokers         :: ![RsMdBroker]
+  , rsMdBrokers         :: ![RsPayload]
   , rsMdNumTopicMd      :: !ListLength
-  , rsMdTopicMetadata   :: ![RsMdTopicMetadata]
+  , rsMdTopicMetadata   :: ![RsPayload]
   }
   | FetchResponse
   { rsFtTopicNameLen     :: !StringLength
   , rsFtTopicName        :: !TopicName
   , rsFtNumsPayloads     :: !ListLength
-  , rsFtPayloads         :: [RsFtPayload]
+  , rsFtPayloads         :: [RsPayload]
   }
   | OffsetResponse
-  { rsOfTopicNameLen    :: !StringLength
+  { rsOfTopicNameLen    ::  !StringLength
   , rsOfTopicName        :: !TopicName
   , rsOfNumPartitionOfs  :: !ListLength
   , rsOfPartitionOfs     :: [RsOfPartitionOf]
-  } 
+  }
   | ConsumerMetadataResponse
   { rsCmErrorCode       :: !ErrorCode
   , rsCmCoordinatorId   :: !RsNodeId
@@ -60,61 +61,89 @@ data Response = ProduceResponse
   , rsCmCoordinatorPort :: !RsMdPort
   }
   | OffsetCommitResponse
-  { rsOcTopicNameLen    :: !StringLength
-  , rsOcTopicName       :: !TopicName
-  , rsOcNumErrors       :: !ListLength
-  , rsOcErrors          :: [RsOcError]
-  } 
+  {
+    sOcTopic           :: !RsTopic 
+  }
   | OffsetFetchResponse
-  { rsOftTopicNameLen   :: !StringLength
-  , rsOftTopicName      :: !TopicName
-  , rsOftNumErrors      :: !ListLength
-  , rsOftErrors         :: [RsOftError]
+  {
+    rsPrTopic           :: !RsTopic
   } deriving (Show)
 
---------------------
--- Produce Response (Pr)
---------------------
-data RsPrError = RsPrError
+data RsTopic = RsTopic 
+  { rsTopicNameLen        :: !StringLength
+  , rsTopicName           :: !TopicName 
+  , rsNumPayloads         :: !ListLength 
+  , rsPayloads            :: [RsPayload]
+  } deriving (Show)
+
+
+data RsPayload =
+  -------------------
+  -- Produce Response (Pr)
+  --------------------
+  RsPrPayload
   { rsPrPartitionNumber :: !PartitionNumber
   , rsPrCode            :: !ErrorCode
   , rsPrOffset          :: !Offset
-  } deriving (Show)
-
---------------------
--- Metadata Response (Mt)
---------------------
-data RsMdBroker = RsMdBroker
-  { rsMdNodeId          :: !RsNodeId
-  , rsMdHost            :: !RsMdHost
-  , rsMdPort            :: !RsMdPort
-  } deriving (Show)
-
-data RsMdTopicMetadata = RsMdTopicMetadata
-  { rsMdTopicErrorCode  :: !ErrorCode
-  , rsMdTopicNameLen    :: !StringLength
-  , rsMdTopicName       :: !TopicName
-  , rsMdNumPartitionMd  :: !ListLength
-  , rsMdPartitionMd     :: [RsMdPartitionMetadata]
-  } deriving (Show)
-
-data RsMdPartitionMetadata = RsMdPartitionMetadata
-  { rsMdPartitionErrorCode :: !ErrorCode
-  , rsMdPartitionId        :: !PartitionNumber
-  , rsMdLeader             :: !RsNodeId
-  , rsMdReplicas           :: [RsNodeId]
-  , rsMdIsr                :: [RsNodeId]
-  } deriving (Show)
-
--------------------
--- Fetch Response (Ft)
--------------------
-data RsFtPayload = RsFtPayload
+  }
+  |
+  -------------------
+  -- Offset Commit Response (Oc)
+  -------------------
+  RsOcPayload
+  { rsOcPartitionNumber :: !PartitionNumber
+  , rsOcErrorCode       :: !ErrorCode
+  }
+  |
+  -------------------
+  -- Offset Fetch Response (Oft)
+  -------------------
+  RsOftPayload
+  { rsOftPartitionNumber  :: !PartitionNumber
+  , rsOftOffset           :: !Offset
+  , rsOftMetadataLen      :: !StringLength
+  , rsOftMetadata         :: !RsOftMetadata
+  , rsOftErrorCode        :: !ErrorCode
+  }
+  |
+  -------------------
+  -- Fetch Response (Ft)
+  -------------------
+  RsFtPayload
   { rsFtPartitionNumber  :: !PartitionNumber
   , rsFtErrorCode        :: !ErrorCode
   , rsFtHwMarkOffset     :: !HightwaterMarkOffset
   , rsFtMessageSetSize   :: !MessageSetSize
   , rsFtMessageSets      :: [MessageSet]
+  } 
+  |
+  --------------------
+  -- Metadata Response (Mt)
+  --------------------
+  RsMdPayloadBroker
+  { rsMdNodeId          :: !RsNodeId
+  , rsMdHostLen         :: !StringLength
+  , rsMdHost            :: !RsMdHost
+  , rsMdPort            :: !RsMdPort
+  }
+  |
+  RsMdPayloadTopic
+  { rsMdTopicErrorCode  :: !ErrorCode
+  , rsMdTopicNameLen    :: !StringLength
+  , rsMdTopicName       :: !TopicName
+  , rsMdNumPartitionMd  :: !ListLength
+  , rsMdPartitionMd     :: [RsMdPartitionMetadata]
+  }
+  deriving (Show)
+
+data RsMdPartitionMetadata = RsMdPartitionMetadata
+  { rsMdPartitionErrorCode :: !ErrorCode
+  , rsMdPartitionId        :: !PartitionNumber
+  , rsMdLeader             :: !RsNodeId
+  , rsMdNumReplicas        :: !ListLength
+  , rsMdReplicas           :: [RsNodeId]
+  , rsMdNumIsrs            :: !ListLength
+  , rsMdIsrs                :: [RsNodeId]
   } deriving (Show)
 
 -------------------
@@ -122,26 +151,9 @@ data RsFtPayload = RsFtPayload
 -------------------
 data RsOfPartitionOf = RsOfPartitionOf
   { rsOfPartitionNumber :: !PartitionNumber
-  , rsOfErrorCode       :: !ErrorCode
-  , rsOfOffset          :: !Offset
+  , rsOfErrorCode       :: !ErrorCode64
+  , rsOfNumOffsets      :: !ListLength
+  , rsOfOffsets          :: [Offset]
   } deriving (Show)
 
--------------------
--- Offset Commit Response (Oc)
--------------------
-data RsOcError = RsOcError
-  { rsOcPartitionNumber :: !PartitionNumber
-  , rsOcErrorCode       :: !ErrorCode
-  } deriving (Show)
-
--------------------
--- Offset Fetch Response (Oft)
--------------------
-data RsOftError = RsOftError
-  { rsOftPartitionNumber  :: !PartitionNumber
-  , rsOftOffset           :: !Offset
-  , rsOftMetadataLen      :: !StringLength
-  , rsOftMetadata         :: !RsOftMetadata
-  , rsOftErrorCode        :: !ErrorCode
-  } deriving (Show)
 

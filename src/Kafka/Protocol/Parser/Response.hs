@@ -1,6 +1,7 @@
 module Kafka.Protocol.Parser.Response
 ( produceResponseMessageParser
 , fetchResponseMessageParser
+, metadataResponseMessageParser
 ) where 
 
 import Kafka.Protocol.Types
@@ -17,23 +18,28 @@ parseList i p = do
             xs <- parseList (i-1) p
             return (x:xs)
 
+rsTopicParser :: (Get RsPayload) -> Get RsTopic 
+rsTopicParser p = do 
+  topicNameLen <- getWord16be
+  topicName <- getByteString $ fromIntegral topicNameLen
+  numPayloads <- getWord32be
+  payloads <- parseList (fromIntegral numPayloads) p
+  return $ RsTopic topicNameLen topicName numPayloads payloads
+
 ---------------------
 -- Produce Response (Pr)
 ---------------------
-rsPrErrorParser :: Get RsPrError 
+rsPrErrorParser :: Get RsPayload 
 rsPrErrorParser= do 
   partitionNumber <- getWord32be
   errorCode <- getWord16be 
   offset <- getWord64be 
-  return $! RsPrError partitionNumber errorCode offset
+  return $! RsPrPayload partitionNumber errorCode offset
 
 produceResponseParser :: Get Response
 produceResponseParser = do 
-  topicNameLen <- getWord16be
-  topicsName <- getByteString $ fromIntegral topicNameLen
-  numErrors <- getWord32be
-  errors <- parseList (fromIntegral numErrors) rsPrErrorParser
-  return $! ProduceResponse topicNameLen topicsName numErrors errors
+  topic <- rsTopicParser rsPrErrorParser
+  return $! ProduceResponse topic
 
 produceResponseMessageParser :: Get ResponseMessage
 produceResponseMessageParser = do 
@@ -71,7 +77,7 @@ fetchResponseParser = do
   payloads <- parseList (fromIntegral numPayloads) rsFtPayloadParser
   return $! FetchResponse topicNameLen topicsName numPayloads payloads
 
-rsFtPayloadParser :: Get RsFtPayload 
+rsFtPayloadParser :: Get RsPayload 
 rsFtPayloadParser = do 
   partition <- getWord32be
   errorCode <- getWord16be
@@ -80,5 +86,50 @@ rsFtPayloadParser = do
   messageSet <- parseMessageSets (fromIntegral messageSetSize)
   return $! RsFtPayload partition errorCode hwMarkOffset messageSetSize messageSet
 
+---------------------
+-- Metdata Response (Md)
+---------------------
+rsMdPartitionMdParser :: Get RsMdPartitionMetadata
+rsMdPartitionMdParser = do 
+  errorcode <- getWord16be
+  partition <- getWord32be
+  leader <- getWord32be
+  numreplicas <- getWord32be
+  replicas <- parseList (fromIntegral numreplicas) getWord32be 
+  numIsr <- getWord32be
+  isrs <- parseList (fromIntegral numIsr) getWord32be
+  return $! RsMdPartitionMetadata errorcode partition leader numreplicas replicas numIsr isrs
 
+rsMdPayloadTopicParser :: Get RsPayload
+rsMdPayloadTopicParser = do 
+  errorcode <- getWord16be 
+  topicNameLen <- getWord16be
+  topicName <- getByteString $ fromIntegral topicNameLen 
+  numPartition <- getWord32be 
+  partitions <- parseList (fromIntegral numPartition) rsMdPartitionMdParser
+  return $! RsMdPayloadTopic errorcode topicNameLen topicName numPartition partitions 
+
+rsMdPayloadBrokerParser :: Get RsPayload 
+rsMdPayloadBrokerParser = do 
+  node <- getWord32be 
+  hostLen <- getWord16be
+  host <- getByteString $ fromIntegral hostLen
+  port <- getWord32be 
+  return $! RsMdPayloadBroker node hostLen host port
+
+metadataResponseParser :: Get Response 
+metadataResponseParser = do 
+  numBrokers <- getWord32be
+  brokers <- parseList (fromIntegral numBrokers) rsMdPayloadBrokerParser
+  numTopics   <- getWord32be
+  topics <- parseList (fromIntegral numTopics) rsMdPayloadTopicParser
+  return $! MetadataResponse numBrokers brokers numTopics topics 
+
+metadataResponseMessageParser :: Get ResponseMessage 
+metadataResponseMessageParser = do 
+  correlationId <- getWord32be 
+  unknown <- getWord32be
+  numResponses <- getWord32be
+  responses <- parseList (fromIntegral numResponses) metadataResponseParser
+  return $! ResponseMessage correlationId numResponses responses
 

@@ -1,8 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Kafka.Client.Producer
 (  packPrRqMessage
  , decodePrResponse
- , decodePrResponse'
 )
 where 
 
@@ -36,8 +34,8 @@ packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
                           1500
                           (fromIntegral $ length [packTopic])
                           [packTopic]
-        packTopic = Topic
-                          (fromIntegral $ length topic)
+        packTopic = RqTopic
+                          (fromIntegral $ length topic) 
                           (BC.pack topic)
                           (fromIntegral $ length [packPartition])
                           ([packPartition])
@@ -67,6 +65,3 @@ packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
 decodePrResponse :: BL.ByteString -> ResponseMessage
 decodePrResponse a = runGet produceResponseMessageParser a
 
-decodePrResponse' :: BL.ByteString -> IO(Either String RequestMessage)
-decodePrResponse' a = 
-  E.catch (E.evaluate $ Right $ runGet requestMessageParser a) ( \(e :: E.SomeException) -> return (Left "Err"))
