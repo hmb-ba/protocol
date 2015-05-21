@@ -24,18 +24,8 @@ library
     Kafka.Client.Common,
     Kafka.Protocol,
     Kafka.Protocol.Types,
-    Kafka.Protocol.Types.Common,
-    Kafka.Protocol.Types.Data,
-    Kafka.Protocol.Types.Request,
-    Kafka.Protocol.Types.Response,
-    Kafka.Protocol.Parser,
-    Kafka.Protocol.Parser.Request,
-    Kafka.Protocol.Parser.Response,
-    Kafka.Protocol.Parser.Data,
-    Kafka.Protocol.Serializer,
-    Kafka.Protocol.Serializer.Request,
-    Kafka.Protocol.Serializer.Response,
-    Kafka.Protocol.Serializer.Data
+    Kafka.Protocol.Decode,
+    Kafka.Protocol.Encode
   -- other-extensions:    
   build-depends:
     base >=4.6 && <5.0,

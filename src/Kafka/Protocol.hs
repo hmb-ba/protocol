@@ -1,9 +1,9 @@
 module Kafka.Protocol
 ( module Kafka.Protocol.Types
-, module Kafka.Protocol.Parser
-, module Kafka.Protocol.Serializer
+, module Kafka.Protocol.Encode
+, module Kafka.Protocol.Decode
 ) where
 
 import Kafka.Protocol.Types
-import Kafka.Protocol.Parser
-import Kafka.Protocol.Serializer
+import Kafka.Protocol.Encode
+import Kafka.Protocol.Decode
