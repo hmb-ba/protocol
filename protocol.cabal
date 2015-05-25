@@ -17,6 +17,9 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:   src
+  -- FIXME (meiersi): consider exposing only Kafka.Protocol and Kafka.Client.
+  -- They do re-export all of the other modules. This will make both the
+  -- documentation more compact and simplify the usage of your code.
   exposed-modules:
     Kafka.Client,
     Kafka.Client.Producer,

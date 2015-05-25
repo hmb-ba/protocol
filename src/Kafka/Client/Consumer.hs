@@ -34,6 +34,11 @@ packFtPartition p o = RqFtPartition
 
 packFtRqMessage :: (Int, Int, [Char], [Char], Int, Int) -> RequestMessage
 packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage {
+       -- FIXME (meiersi): this line seems to be unnecessarily long. Introduce
+       -- local definitions in where clause that have telling names. Also
+       -- consider adding explicit type signatures, as the 'fromIntegral'
+       -- casting introduces a lot of uncertainty about what is really going
+       -- on.
        rqSize = (fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset))
                               + 2 -- reqApiKey
                               + 2 -- reqApiVersion
@@ -53,6 +58,8 @@ packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage 
 -- Encode / Decode
 -------------------
 
+-- FIXME (meiersi): avoid partial functions!
+-- FIXME (meiersi): replace magic tuple by a properly named record.
 encodeFtRequest :: (Int, Int, Int, String, String, Int, Int) -> RequestMessage
 encodeFtRequest (1, apiV, corr, client, topic, partition, offset) = packFtRqMessage (apiV, corr, client, topic, partition, offset)
 

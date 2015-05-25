@@ -29,6 +29,13 @@ import qualified Network.Socket.ByteString.Lazy as SBL
 -- Common
 --------------------------------------------------------
 
+-- FIXME (meiersi): this function smells of too many copies and lazy
+-- bytestring traversals! `BL.append` has linear complexity whereas 
+-- '(>>) :: Put a -> Put b -> Put b' has constant complexity. 
+--
+-- Change the whole module to run the 'Put' at the latest possible point in
+-- time!
+--
 buildList :: (a -> BL.ByteString) -> [a] -> BL.ByteString
 buildList builder [] = BL.empty
 buildList builder (x:xs) = BL.append (builder x) (buildList builder xs)
@@ -47,6 +54,8 @@ buildMessage :: Message -> BL.ByteString
 buildMessage e = runPut $ do
   --putWord32be $ crc32 $ payloadData $ payload e
   putWord32be $ crc e
+  -- FIXME (meiersi): avoid intermediate copy introduced by this construction.
+  -- Remove the 'runPut' from 'buildPayload' and call 'buildPayload' directly.
   putLazyByteString $ buildPayload $ payload e
 
 buildPayload :: Payload -> BL.ByteString
@@ -62,7 +71,6 @@ buildPayload e = runPut $ do
 --------------------------------------------------------
 -- Request
 --------------------------------------------------------
-
 
 buildRqMessage :: RequestMessage -> (Request -> BL.ByteString) -> BL.ByteString
 buildRqMessage e rb = runPut $ do
