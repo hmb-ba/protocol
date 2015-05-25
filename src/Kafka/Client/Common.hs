@@ -18,7 +18,7 @@ sendRequest socket requestMessage = do
     where msg = case (rqApiKey requestMessage) of
                     0 -> buildPrRqMessage requestMessage
                     1 -> buildFtRqMessage requestMessage
-                    3 -> buildMdRqMessage requestMessage 
+                    3 -> buildMdRqMessage requestMessage
 
 packTopicName :: [Char] -> RqTopicName
 packTopicName t = RqTopicName (fromIntegral $ length t) (BC.pack t)
@@ -36,5 +36,5 @@ encodeMdRequest (apiV, corr, client, ts) = RequestMessage
               (BC.pack client)
               (MetadataRequest (fromIntegral $ length ts) (packTopicNames ts))
 
-decodeMdResponse :: BL.ByteString -> ResponseMessage 
+decodeMdResponse :: BL.ByteString -> ResponseMessage
 decodeMdResponse b = runGet metadataResponseMessageParser b

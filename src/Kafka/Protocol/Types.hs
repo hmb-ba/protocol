@@ -86,7 +86,7 @@ data Payload = Payload
   , payloadData :: !PayloadData
   } deriving (Show, Eq)
 
-data Message = Message 
+data Message = Message
   { crc     :: !Crc
   , payload :: Payload
   } deriving (Show, Eq)
@@ -94,7 +94,7 @@ data Message = Message
 data MessageSet = MessageSet
   { offset  :: !Offset
   , len     :: !Length
-  , message :: !Message 
+  , message :: !Message
   } deriving (Show, Eq)
 
 ----------------------
@@ -168,7 +168,7 @@ data Request = ProduceRequest
   { rqCmConsumerGroupLen   :: !StringLength
   , rqCmConsumerGroup      :: !ConsumerGroup
   }
-  | OffsetCommitRequest 
+  | OffsetCommitRequest
   { rqOcConsumerGroupIdLen          :: !StringLength
   , rqOcConsumerGroupId             :: !ConsumerGroupId
   , rqOcConsumerGroupGenerationId   :: !ConsumerGroupGenerationId
@@ -299,17 +299,17 @@ data Response = ProduceResponse
   }
   | OffsetCommitResponse
   {
-    sOcTopic           :: !RsTopic 
+    sOcTopic           :: !RsTopic
   }
   | OffsetFetchResponse
   {
     rsPrTopic           :: !RsTopic
   } deriving (Show)
 
-data RsTopic = RsTopic 
+data RsTopic = RsTopic
   { rsTopicNameLen        :: !StringLength
-  , rsTopicName           :: !TopicName 
-  , rsNumPayloads         :: !ListLength 
+  , rsTopicName           :: !TopicName
+  , rsNumPayloads         :: !ListLength
   , rsPayloads            :: [RsPayload]
   } deriving (Show)
 
@@ -352,7 +352,7 @@ data RsPayload =
   , rsFtHwMarkOffset     :: !HightwaterMarkOffset
   , rsFtMessageSetSize   :: !MessageSetSize
   , rsFtMessageSets      :: [MessageSet]
-  } 
+  }
   |
   --------------------
   -- Metadata Response (Mt)

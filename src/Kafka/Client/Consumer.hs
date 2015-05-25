@@ -1,4 +1,4 @@
-module Kafka.Client.Consumer 
+module Kafka.Client.Consumer
 ( decodeFtResponse
 , packFtRqMessage
 , encodeFtRequest
@@ -17,16 +17,16 @@ packTopic t ps = RqTopic
    t
    (fromIntegral $ length ps)
    ps
- 
+
 packFtRequest :: BS.ByteString -> PartitionNumber -> Offset -> Request
-packFtRequest t p o = FetchRequest 
+packFtRequest t p o = FetchRequest
    (-1)
    0
    0
    1
    [packTopic t [packFtPartition p o]]
 
-packFtPartition :: PartitionNumber -> Offset -> Partition 
+packFtPartition :: PartitionNumber -> Offset -> Partition
 packFtPartition p o = RqFtPartition
    p
    o
@@ -37,7 +37,7 @@ packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage 
        rqSize = (fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset))
                               + 2 -- reqApiKey
                               + 2 -- reqApiVersion
-                              + 4 -- correlationId 
+                              + 4 -- correlationId
                               + 2 -- clientIdLen
                               + (fromIntegral $ length client) -- clientId
                 )
@@ -48,7 +48,7 @@ packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage 
      , rqClientId = BC.pack client
      , rqRequest = packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset)
   }
- 
+
 -------------------
 -- Encode / Decode
 -------------------

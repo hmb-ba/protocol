@@ -2,7 +2,7 @@ module Kafka.Client.Producer
 (  packPrRqMessage
  , decodePrResponse
 )
-where 
+where
 
 import Kafka.Protocol
 
@@ -11,14 +11,14 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Digest.CRC32
 import Data.Binary.Get
 
-import qualified Control.Exception as E 
+import qualified Control.Exception as E
 
 packPrRqMessage :: (BS.ByteString, BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
 packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
       rqSize = fromIntegral $ (BL.length $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
-          + 4 -- correlationId 
+          + 4 -- correlationId
           + 2 -- clientIdLen
           + (fromIntegral $ BS.length client) --clientId
     , rqApiKey = 0
@@ -34,7 +34,7 @@ packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
                           (fromIntegral $ length [packTopic])
                           [packTopic]
         packTopic = RqTopic
-                          (fromIntegral $ BS.length topic) 
+                          (fromIntegral $ BS.length topic)
                           topic
                           (fromIntegral $ length [packPartition])
                           ([packPartition])
