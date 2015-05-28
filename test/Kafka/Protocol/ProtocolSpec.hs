@@ -2,6 +2,7 @@ module Kafka.Protocol.ProtocolSpec where
 
 import SpecHelper
 import Data.Binary.Get
+import Data.Binary.Put
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as BS
 
@@ -74,10 +75,10 @@ main :: IO()
 main = hspec spec
 
 testSerializeParseMessageSet :: MessageSet -> Expectation
-testSerializeParseMessageSet m = (runGet messageSetParser $ buildMessageSet m) `shouldBe` m
+testSerializeParseMessageSet m = (runGet messageSetParser $ runPut $ buildMessageSet m) `shouldBe` m
 
 testSerializeParsePrReq :: RequestMessage -> Expectation
-testSerializeParsePrReq req = (runGet requestMessageParser $ buildPrRqMessage req) `shouldBe` req
+testSerializeParsePrReq req = (runGet requestMessageParser $ runPut $ buildPrRqMessage req) `shouldBe` req
 
 
 

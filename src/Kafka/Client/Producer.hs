@@ -10,7 +10,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import Data.Digest.CRC32
 import Data.Binary.Get
-
+import Data.Binary.Put
 import qualified Control.Exception as E
 
 -- FIXME (meiersi): introduce at least type synonyms for the different kinds
@@ -19,7 +19,7 @@ import qualified Control.Exception as E
 -- to cheaply introduce /different/ types.
 packPrRqMessage :: (BS.ByteString, BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
 packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
-      rqSize = fromIntegral $ (BL.length $ buildProduceRequest produceRequest )
+      rqSize = fromIntegral $ (BL.length $ runPut $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
           + 4 -- correlationId
@@ -48,18 +48,18 @@ packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
                           ([packPartition])
         packPartition = RqPrPartition
                           (fromIntegral partition)
-                          (fromIntegral $ BL.length $ buildMessageSets ms)
+                          (fromIntegral $ BL.length $ runPut $ buildMessageSets ms)
                           ms
         ms = (map packMessageSet inputData)
 
 packMessageSet :: BS.ByteString -> MessageSet
 packMessageSet bs = MessageSet
                           0
-                          (fromIntegral $ BL.length $ buildMessage packMessage)
+                          (fromIntegral $ BL.length $ runPut $ buildMessage packMessage)
                           packMessage
   where
         packMessage = Message
-                          (crc32 $ buildPayload packPayload)
+                          (crc32 $ runPut $ buildPayload packPayload)
                           packPayload
         packPayload = Payload
                           0

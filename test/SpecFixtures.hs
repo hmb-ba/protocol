@@ -4,6 +4,8 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as BS
 import Kafka.Protocol
 
+import Data.Binary.Put
+
 getMessageSetFixture :: Message -> MessageSet
 getMessageSetFixture m = MessageSet 0 0 m
 
@@ -27,6 +29,6 @@ getTopicFixture :: [Char] -> [Partition] -> RqTopic
 getTopicFixture s ps = RqTopic (fromIntegral $ length s) (BS.pack s) (fromIntegral $ length ps) ps
 
 getRqPrPartitionFixture :: [MessageSet] -> Partition
-getRqPrPartitionFixture ms = RqPrPartition 0 (fromIntegral $ BL.length $ buildMessageSets ms ) ms
+getRqPrPartitionFixture ms = RqPrPartition 0 (fromIntegral $ BL.length $ runPut $ buildMessageSets ms ) ms
 
 

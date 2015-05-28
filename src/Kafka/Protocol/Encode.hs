@@ -29,37 +29,30 @@ import qualified Network.Socket.ByteString.Lazy as SBL
 -- Common
 --------------------------------------------------------
 
--- FIXME (meiersi): this function smells of too many copies and lazy
--- bytestring traversals! `BL.append` has linear complexity whereas 
--- '(>>) :: Put a -> Put b -> Put b' has constant complexity. 
---
--- Change the whole module to run the 'Put' at the latest possible point in
--- time!
---
-buildList :: (a -> BL.ByteString) -> [a] -> BL.ByteString
-buildList builder [] = BL.empty
-buildList builder (x:xs) = BL.append (builder x) (buildList builder xs)
+buildList :: (a -> Put) -> [a] -> Put
+buildList builder [] = putLazyByteString BL.empty
+buildList builder [x] = builder x
+buildList builder (x:xs) = do 
+  builder x
+  buildList builder xs
 
 --------------------------------------------------------
 -- Data
 --------------------------------------------------------
 
-buildMessageSet :: MessageSet -> BL.ByteString
-buildMessageSet e = runPut $ do
+buildMessageSet :: MessageSet -> Put
+buildMessageSet e = do
   putWord64be $ offset e
   putWord32be $ len e
-  putLazyByteString $ buildMessage $ message e
+  buildMessage $ message e
 
-buildMessage :: Message -> BL.ByteString
-buildMessage e = runPut $ do
-  --putWord32be $ crc32 $ payloadData $ payload e
+buildMessage :: Message -> Put
+buildMessage e = do
   putWord32be $ crc e
-  -- FIXME (meiersi): avoid intermediate copy introduced by this construction.
-  -- Remove the 'runPut' from 'buildPayload' and call 'buildPayload' directly.
-  putLazyByteString $ buildPayload $ payload e
+  buildPayload $ payload e
 
-buildPayload :: Payload -> BL.ByteString
-buildPayload e = runPut $ do
+buildPayload :: Payload -> Put 
+buildPayload e = do
   putWord8    $ magic e
   putWord8    $ attr e
   putWord32be $ keylen $ e
@@ -67,104 +60,106 @@ buildPayload e = runPut $ do
   putByteString $ payloadData $ e
 
 
-
 --------------------------------------------------------
 -- Request
 --------------------------------------------------------
 
-buildRqMessage :: RequestMessage -> (Request -> BL.ByteString) -> BL.ByteString
-buildRqMessage e rb = runPut $ do
+buildRqMessage :: RequestMessage -> (Request -> Put) -> Put
+buildRqMessage e rb = do
   putWord32be $ rqSize e
   putWord16be $ rqApiKey e
   putWord16be $ rqApiVersion e
   putWord32be $ rqCorrelationId e
   putWord16be $ rqClientIdLen e
   putByteString $ rqClientId e
-  putLazyByteString $ rb $ rqRequest e
+  rb $ rqRequest e
 
-buildTopic :: (Partition -> BL.ByteString) -> RqTopic -> BL.ByteString
-buildTopic pb t = runPut $ do
+buildTopic :: (Partition -> Put) -> RqTopic -> Put
+buildTopic pb t = do
   putWord16be         $ rqTopicNameLen t
   putByteString       $ rqTopicName t
   putWord32be       $ numPartitions t
-  putLazyByteString $ foldl (\acc p -> BL.append acc (pb p)) BL.empty $ partitions t
+  buildList pb $ partitions t
 
-buildRqTopicName :: RqTopicName -> BL.ByteString
-buildRqTopicName e = runPut $ do
+buildRqTopicName :: RqTopicName -> Put
+buildRqTopicName e = do
   putWord16be         $ topicNameLen e
   putByteString       $ topicName e
 
 -------------------------------
 -- Produce Request
 -------------------------------
-buildMessageSets :: [MessageSet] -> BL.ByteString
-buildMessageSets [] = BL.empty
-buildMessageSets (x:xs) = BL.append (buildMessageSet x) (buildMessageSets xs)
+buildMessageSets :: [MessageSet] -> Put
+buildMessageSets [] = putLazyByteString BL.empty
+buildMessageSets [x] = buildMessageSet x 
+buildMessageSets (x:xs) = do 
+  buildMessageSet x
+  buildMessageSets xs
 
-buildRqPrPartition :: Partition -> BL.ByteString
-buildRqPrPartition e = runPut $ do
+buildRqPrPartition :: Partition -> Put
+buildRqPrPartition e = do
   putWord32be $ rqPrPartitionNumber e
   putWord32be $ rqPrMessageSetSize e
-  putLazyByteString $ buildMessageSets $ rqPrMessageSet e
+  buildMessageSets $ rqPrMessageSet e 
 
-buildProduceRequest :: Request -> BL.ByteString
-buildProduceRequest e = runPut $ do
+buildProduceRequest :: Request -> Put
+buildProduceRequest e = do
   putWord16be $ rqPrRequiredAcks e
   putWord32be $ rqPrTimeout e
   putWord32be $ rqPrNumTopics e
-  putLazyByteString $ foldl (\acc t -> BL.append acc (buildTopic buildRqPrPartition t)) BL.empty $ rqPrTopics e
+  buildList (buildTopic buildRqPrPartition) $ rqPrTopics e
 
-buildPrRqMessage :: RequestMessage -> BL.ByteString
+buildPrRqMessage :: RequestMessage -> Put
 buildPrRqMessage rm = buildRqMessage rm buildProduceRequest
 
 -------------------------------
 -- Fetch Request
 -------------------------------
 
-buildRqFtPartition :: Partition -> BL.ByteString
-buildRqFtPartition p = runPut $ do
+buildRqFtPartition :: Partition -> Put
+buildRqFtPartition p = do
   putWord32be $ rqFtPartitionNumber p
   putWord64be $ rqFtFetchOffset p
   putWord32be $ rqFtMaxBytes p
 
-buildFetchRequest :: Request -> BL.ByteString
-buildFetchRequest e = runPut $ do
+buildFetchRequest :: Request -> Put
+buildFetchRequest e = do
   putWord32be $ rqFtReplicaId e
   putWord32be $ rqFtMaxWaitTime e
   putWord32be $ rqFtMinBytes e
   putWord32be $ rqFtNumTopics e
-  putLazyByteString $ foldl (\acc t -> BL.append acc (buildTopic buildRqFtPartition t)) BL.empty $ rqFtTopics e
+  buildList (buildTopic buildRqFtPartition) $ rqFtTopics e
 
-buildFtRqMessage :: RequestMessage -> BL.ByteString
+buildFtRqMessage :: RequestMessage -> Put
 buildFtRqMessage rm = buildRqMessage rm buildFetchRequest
 
 -------------------------------
 -- Metadata Request
 -------------------------------
-buildMetadataRequest :: Request -> BL.ByteString
-buildMetadataRequest e = runPut $ do
+buildMetadataRequest :: Request -> Put
+buildMetadataRequest e = do
   putWord32be $ rqMdNumTopics e
-  putLazyByteString $ foldl (\acc t -> BL.append acc (buildRqTopicName t)) BL.empty $ rqMdTopicNames e
+  buildList buildRqTopicName $ rqMdTopicNames e
 
-buildMdRqMessage :: RequestMessage -> BL.ByteString
+buildMdRqMessage :: RequestMessage -> Put
 buildMdRqMessage rm = buildRqMessage rm buildMetadataRequest
 
 -------------------------------
 -- Offset Request
 -------------------------------
-buildRqOfPartition :: Partition -> BL.ByteString
-buildRqOfPartition e = runPut $ do
+buildRqOfPartition :: Partition -> Put
+buildRqOfPartition e = do
   putWord32be     $ rqOfPartitionNumber e
   putWord64be     $ rqOfTime e
   putWord32be     $ rqOfMaxNumOffset e
 
-buildOffsetRequest :: Request -> BL.ByteString
-buildOffsetRequest e = runPut $ do
+buildOffsetRequest :: Request -> Put
+buildOffsetRequest e = do
   putWord32be     $ rqOfReplicaId e
   putWord32be     $ rqOfNumTopics e
-  putLazyByteString $ foldl (\acc t -> BL.append acc (buildTopic buildRqOfPartition t)) BL.empty $ rqOfTopics e
+  buildList (buildTopic buildRqOfPartition) $ rqOfTopics e
 
-buildOfRqMessage :: RequestMessage -> BL.ByteString
+buildOfRqMessage :: RequestMessage -> Put
 buildOfRqMessage rm = buildRqMessage rm buildOffsetRequest
 
 
@@ -174,114 +169,113 @@ buildOfRqMessage rm = buildRqMessage rm buildOffsetRequest
 --------------------------------------------------------
 
 
-buildRsMessage :: (Response -> BL.ByteString) -> ResponseMessage -> BL.ByteString
-buildRsMessage rsBuilder rm = runPut $ do
+buildRsMessage :: (Response -> Put) -> ResponseMessage -> Put
+buildRsMessage rsBuilder rm = do
   putWord32be       $ rsCorrelationId rm
   putWord32be       $ fromIntegral 0  --TODO: Unkown Word32 from original kafka response
   putWord32be       $ rsNumResponses rm
-  putLazyByteString $ buildList rsBuilder $ rsResponses rm
+  buildList rsBuilder $ rsResponses rm
 
-buildRsTopic :: (RsPayload -> BL.ByteString) -> RsTopic -> BL.ByteString
-buildRsTopic b t = runPut $ do
+buildRsTopic :: (RsPayload -> Put) -> RsTopic -> Put
+buildRsTopic b t = do
   putWord16be $ rsTopicNameLen t
   putByteString $ rsTopicName t
   putWord32be $ rsNumPayloads t
-  putLazyByteString $ foldl(\acc p -> BL.append acc (b p)) BL.empty $ rsPayloads t
+  buildList buildRsPrPayload $ rsPayloads t
 
 --------------------
 -- Produce Response (Pr)
 --------------------
-buildRsPrPayload :: RsPayload -> BL.ByteString
-buildRsPrPayload e = runPut $ do
+buildRsPrPayload :: RsPayload -> Put
+buildRsPrPayload e = do
   putWord32be $ rsPrPartitionNumber e
   putWord16be $ rsPrCode e
   putWord64be $ rsPrOffset e
 
-buildProduceResponse :: Response -> BL.ByteString
-buildProduceResponse e = runPut $ do
-  putLazyByteString $ buildRsTopic buildRsPrPayload $ rsPrTopic e
+buildProduceResponse :: Response -> Put
+buildProduceResponse e = do
+  buildRsTopic buildRsPrPayload $ rsPrTopic e
 
-buildPrResponseMessage :: ResponseMessage -> BL.ByteString
+buildPrResponseMessage :: ResponseMessage -> Put
 buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
 
 --------------------
 -- Fetch Response (Ft)
 --------------------
-buildFtPayload :: RsPayload -> BL.ByteString
-buildFtPayload p = runPut $ do
+buildFtPayload :: RsPayload -> Put 
+buildFtPayload p =do
   putWord32be       $ rsFtPartitionNumber p
   putWord16be       $ rsFtErrorCode p
   putWord64be       $ rsFtHwMarkOffset p
   putWord32be       $ rsFtMessageSetSize p
-  putLazyByteString $ foldl (\acc ms -> BL.append acc (buildMessageSet ms)) BL.empty $ rsFtMessageSets p
+  buildMessageSets $ rsFtMessageSets p
 
-
-buildFtRs :: Response -> BL.ByteString
-buildFtRs rs = runPut $ do
+buildFtRs :: Response -> Put
+buildFtRs rs = do
   putWord16be       $ rsFtTopicNameLen rs
   putLazyByteString $ BL.fromStrict(rsFtTopicName rs)
   putWord32be       $ rsFtNumsPayloads rs
-  putLazyByteString $ buildList buildFtPayload $ rsFtPayloads rs
+  buildList buildFtPayload $ rsFtPayloads rs
 
-buildFtRsMessage :: ResponseMessage -> BL.ByteString
+buildFtRsMessage :: ResponseMessage -> Put
 buildFtRsMessage rm = buildRsMessage buildFtRs rm
 
 --------------------
 -- Offset Response (Of)
 --------------------
-buildRsOfPartitionOf :: RsOfPartitionOf -> BL.ByteString
-buildRsOfPartitionOf p = runPut $ do
+buildRsOfPartitionOf :: RsOfPartitionOf -> Put
+buildRsOfPartitionOf p = do
   putWord32be     $ rsOfPartitionNumber p
   putWord64be     $ rsOfErrorCode p
   putWord32be     $ rsOfNumOffsets p
-  putLazyByteString $ foldl (\acc o -> BL.append acc (runPut $ putWord64be $ o)) BL.empty $ rsOfOffsets p
+  buildList (putWord64be) $ rsOfOffsets p
 
-buildOfRs :: Response -> BL.ByteString
-buildOfRs rs = runPut $ do
+buildOfRs :: Response -> Put
+buildOfRs rs = do
   putWord16be       $ rsOfTopicNameLen rs
   putLazyByteString $ BL.fromStrict(rsOfTopicName rs)
   putWord32be       $ rsOfNumPartitionOfs rs
-  putLazyByteString $ foldl (\acc p -> BL.append acc (buildRsOfPartitionOf p)) BL.empty $ rsOfPartitionOfs rs
+  buildList buildRsOfPartitionOf $ rsOfPartitionOfs rs
 
-buildOfRsMessage :: ResponseMessage -> BL.ByteString
+buildOfRsMessage :: ResponseMessage -> Put
 buildOfRsMessage rm = buildRsMessage buildOfRs rm
 
 --------------------
 -- Metadata Response (Md)
 --------------------
-buildRsMdPartitionMetadata :: RsMdPartitionMetadata -> BL.ByteString
-buildRsMdPartitionMetadata p = runPut $ do
+buildRsMdPartitionMetadata :: RsMdPartitionMetadata -> Put
+buildRsMdPartitionMetadata p = do
   putWord16be   $ rsMdPartitionErrorCode p
   putWord32be   $ rsMdPartitionId p
   putWord32be   $ rsMdLeader p
   putWord32be   $ rsMdNumReplicas p
-  putLazyByteString $ foldl (\acc r -> BL.append acc (runPut $ putWord32be r)) BL.empty $ rsMdReplicas p
+  buildList (putWord32be) $ rsMdReplicas p
   putWord32be  $ rsMdNumIsrs p
-  putLazyByteString $ foldl (\acc r -> BL.append acc (runPut $ putWord32be r)) BL.empty $ rsMdIsrs p
+  buildList (putWord32be) $ rsMdIsrs p
 
-buildRsMdPayloadTopic :: RsPayload -> BL.ByteString
-buildRsMdPayloadTopic t = runPut $ do
+buildRsMdPayloadTopic :: RsPayload -> Put
+buildRsMdPayloadTopic t = do
   putWord16be   $ rsMdTopicErrorCode t
   putWord16be   $ rsMdTopicNameLen t
   putLazyByteString $ BL.fromStrict $ rsMdTopicName t
   putWord32be   $ rsMdNumPartitionMd t
-  putLazyByteString $ foldl (\acc p -> BL.append acc (buildRsMdPartitionMetadata p)) BL.empty $ rsMdPartitionMd t
+  buildList buildRsMdPartitionMetadata $ rsMdPartitionMd t
 
-buildRsMdPayloadBroker :: RsPayload -> BL.ByteString
-buildRsMdPayloadBroker p = runPut $ do
+buildRsMdPayloadBroker :: RsPayload -> Put
+buildRsMdPayloadBroker p = do
   putWord32be    $ rsMdNodeId p
   putWord16be    $ rsMdHostLen p
   putLazyByteString $ BL.fromStrict(rsMdHost p)
   putWord32be   $ rsMdPort p
 
-buildMdRs :: Response -> BL.ByteString
-buildMdRs rs = runPut $ do
+buildMdRs :: Response -> Put
+buildMdRs rs = do
   putWord32be     $  rsMdNumBroker rs
-  putLazyByteString $ foldl (\acc b -> BL.append acc (buildRsMdPayloadBroker b)) BL.empty $ rsMdBrokers rs
+  buildList buildRsMdPayloadBroker $ rsMdBrokers rs
   putWord32be     $ rsMdNumTopicMd rs
-  putLazyByteString $ foldl (\acc b -> BL.append acc (buildRsMdPayloadTopic b)) BL.empty $ rsMdTopicMetadata rs
+  buildList buildRsMdPayloadTopic $ rsMdTopicMetadata rs
 
-buildMdRsMessage :: ResponseMessage -> BL.ByteString
+buildMdRsMessage :: ResponseMessage -> Put
 buildMdRsMessage rm = buildRsMessage buildMdRs rm
 
 

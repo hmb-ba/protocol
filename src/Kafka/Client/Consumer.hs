@@ -8,6 +8,7 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BL
 import qualified Data.ByteString.Char8 as BC
 import Data.Binary.Get
+import Data.Binary.Put
 import Kafka.Protocol
 
 
@@ -39,7 +40,7 @@ packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage 
        -- consider adding explicit type signatures, as the 'fromIntegral'
        -- casting introduces a lot of uncertainty about what is really going
        -- on.
-       rqSize = (fromIntegral $ (BL.length $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset))
+       rqSize = (fromIntegral $ (BL.length $ runPut $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset))
                               + 2 -- reqApiKey
                               + 2 -- reqApiVersion
                               + 4 -- correlationId

@@ -10,15 +10,16 @@ import qualified Data.ByteString.Char8 as BC
 import Kafka.Protocol
 import Network.Socket
 import Data.Binary.Get
+import Data.Binary.Put
 
 
 sendRequest :: Socket -> RequestMessage -> IO ()
 sendRequest socket requestMessage = do
     SBL.sendAll socket msg
     where msg = case (rqApiKey requestMessage) of
-                    0 -> buildPrRqMessage requestMessage
-                    1 -> buildFtRqMessage requestMessage
-                    3 -> buildMdRqMessage requestMessage
+                    0 -> runPut $ buildPrRqMessage requestMessage
+                    1 -> runPut $ buildFtRqMessage requestMessage
+                    3 -> runPut $ buildMdRqMessage requestMessage
 
 -- FIXME (meiersi): use 'Text' from the 'T.Text' library and 'encodeUtf8' to
 -- create an API that uses sequences of Unicode characters for topic names.
@@ -48,7 +49,7 @@ encodeMdRequest (apiV, corr, client, ts) = RequestMessage
 -- the time.
 -- <https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md>
 -- is a good start.
-              (fromIntegral ((BL.length $ buildMetadataRequest $ (MetadataRequest (fromIntegral $ length ts) (packTopicNames ts))) + 2 + 2 + 4 + 2 + (fromIntegral $ length client)))
+              (fromIntegral ((BL.length $ runPut $ buildMetadataRequest $ (MetadataRequest (fromIntegral $ length ts) (packTopicNames ts))) + 2 + 2 + 4 + 2 + (fromIntegral $ length client)))
               3
               (fromIntegral apiV)
               (fromIntegral corr)

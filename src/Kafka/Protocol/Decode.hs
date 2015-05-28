@@ -10,6 +10,7 @@ where
 
 import Kafka.Protocol.Types
 import Data.Binary.Get
+import Data.Binary.Put
 import qualified Data.ByteString.Lazy as BL
 import Kafka.Protocol.Encode
 import qualified Data.ByteString as BS
@@ -32,7 +33,7 @@ parseMessageSets i = do
     if (i < 1)
     then return []
     else do messageSet <- messageSetParser
-            messageSets <- parseMessageSets $ i - (fromIntegral $ BL.length $ buildMessageSet messageSet)
+            messageSets <- parseMessageSets $ i - (fromIntegral $ BL.length $ runPut $ buildMessageSet messageSet)
             return (messageSet:messageSets)
 
 
