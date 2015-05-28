@@ -20,8 +20,8 @@ import qualified Data.ByteString as BS
 --------------------------------------------------------
 
 parseList :: Int -> (Get a) -> Get [a]
-parseList i p = do 
-  if (i < 1) 
+parseList i p = do
+  if (i < 1)
     then return []
     else do x <- p
             xs <- parseList (i-1) p
@@ -50,16 +50,16 @@ payloadParser = do
   payload <- getByteString $ fromIntegral paylen
   return $! Payload magic attr keylen paylen payload
 
-messageParser :: Get Message 
-messageParser = do 
+messageParser :: Get Message
+messageParser = do
   crc    <- getWord32be
   p      <- payloadParser
   return $! Message crc p
 
-messageSetParser :: Get MessageSet 
-messageSetParser = do 
+messageSetParser :: Get MessageSet
+messageSetParser = do
   offset <- getWord64be
-  len <- getWord32be 
+  len <- getWord32be
   message <- messageParser
   return $! MessageSet offset len message
 
@@ -69,14 +69,14 @@ messageSetParser = do
 --------------------------------------------------------
 
 topicNameParser :: Get RqTopicName
-topicNameParser = do 
+topicNameParser = do
   topicNameLen  <- getWord16be
   topicName     <- getByteString $ fromIntegral topicNameLen
-  return $ RqTopicName topicNameLen topicName 
+  return $ RqTopicName topicNameLen topicName
 
 
-topicParser :: (Get Partition) -> Get RqTopic 
-topicParser p = do 
+topicParser :: (Get Partition) -> Get RqTopic
+topicParser p = do
   topicNameLen  <- getWord16be
   topicName     <- getByteString $ fromIntegral topicNameLen
   numPartitions <- getWord32be
@@ -86,16 +86,16 @@ topicParser p = do
 ------------------------
 -- Produce Request (Pr)
 ------------------------
-rqPrPartitionParser = do 
+rqPrPartitionParser = do
   partitionNumber   <- getWord32be
   messageSetSize    <- getWord32be
   messageSets       <- parseMessageSets (fromIntegral messageSetSize)
   return $ RqPrPartition partitionNumber messageSetSize messageSets
 
 produceRequestParser :: Get Request
-produceRequestParser = do 
+produceRequestParser = do
   requiredAcks  <- getWord16be
-  timeout       <- getWord32be 
+  timeout       <- getWord32be
   numTopics     <- getWord32be
   topics        <- parseList (fromIntegral numTopics) (topicParser rqPrPartitionParser)
   return $ ProduceRequest requiredAcks timeout numTopics topics
@@ -124,8 +124,8 @@ fetchRequestParser = do
 -- Metadata Request (Md)
 ------------------------
 metadataRequestParser :: Get Request
-metadataRequestParser = do 
-  numTopics     <- getWord32be 
+metadataRequestParser = do
+  numTopics     <- getWord32be
   topicNames    <- parseList (fromIntegral numTopics) topicNameParser
   return $ MetadataRequest numTopics topicNames
 
@@ -133,29 +133,29 @@ metadataRequestParser = do
 -- Offset Request (Of)
 ------------------------
 offsetRequestParser :: Get Request
-offsetRequestParser = do 
-  replicaId     <- getWord32be 
+offsetRequestParser = do
+  replicaId     <- getWord32be
   numTopics     <- getWord32be
   topics        <- parseList (fromIntegral numTopics) (topicParser rqOfPartitionParser)
   return $ OffsetRequest replicaId numTopics topics
 
 rqOfPartitionParser :: Get Partition
-rqOfPartitionParser = do 
+rqOfPartitionParser = do
   partition     <- getWord32be
-  time          <- getWord64be 
+  time          <- getWord64be
   maxNumOfOf    <- getWord32be
   return $ RqOfPartition partition time maxNumOfOf
 ------------------------
 -- Request Message Header (Rq)
 ------------------------
 
-requestMessageParser :: Get RequestMessage 
-requestMessageParser = do 
+requestMessageParser :: Get RequestMessage
+requestMessageParser = do
   --requestSize   <- getWord32be
   apiKey        <- getWord16be
-  apiVersion    <- getWord16be 
-  correlationId <- getWord32be 
-  clientIdLen   <- getWord16be 
+  apiVersion    <- getWord16be
+  correlationId <- getWord32be
+  clientIdLen   <- getWord16be
   clientId      <- getByteString $ fromIntegral clientIdLen
   request       <- case (fromIntegral apiKey) of
     0 -> produceRequestParser
@@ -171,8 +171,8 @@ requestMessageParser = do
 --------------------------------------------------------
 
 
-rsTopicParser :: (Get RsPayload) -> Get RsTopic 
-rsTopicParser p = do 
+rsTopicParser :: (Get RsPayload) -> Get RsTopic
+rsTopicParser p = do
   topicNameLen <- getWord16be
   topicName <- getByteString $ fromIntegral topicNameLen
   numPayloads <- getWord32be
@@ -182,21 +182,21 @@ rsTopicParser p = do
 ---------------------
 -- Produce Response (Pr)
 ---------------------
-rsPrErrorParser :: Get RsPayload 
-rsPrErrorParser= do 
+rsPrErrorParser :: Get RsPayload
+rsPrErrorParser= do
   partitionNumber <- getWord32be
-  errorCode <- getWord16be 
-  offset <- getWord64be 
+  errorCode <- getWord16be
+  offset <- getWord64be
   return $! RsPrPayload partitionNumber errorCode offset
 
 produceResponseParser :: Get Response
-produceResponseParser = do 
+produceResponseParser = do
   topic <- rsTopicParser rsPrErrorParser
   return $! ProduceResponse topic
 
 produceResponseMessageParser :: Get ResponseMessage
-produceResponseMessageParser = do 
-  correlationId <- getWord32be 
+produceResponseMessageParser = do
+  correlationId <- getWord32be
   unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) produceResponseParser
@@ -204,24 +204,24 @@ produceResponseMessageParser = do
 ---------------------
 -- Fetch Response (Ft)
 ---------------------
-fetchResponseMessageParser :: Get ResponseMessage 
-fetchResponseMessageParser = do 
-  correlationId <- getWord32be 
+fetchResponseMessageParser :: Get ResponseMessage
+fetchResponseMessageParser = do
+  correlationId <- getWord32be
   unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) fetchResponseParser
   return $! ResponseMessage correlationId numResponses responses
 
 fetchResponseParser :: Get Response
-fetchResponseParser = do 
+fetchResponseParser = do
   topicNameLen <- getWord16be
   topicsName <- getByteString $ fromIntegral topicNameLen
   numPayloads <- getWord32be
   payloads <- parseList (fromIntegral numPayloads) rsFtPayloadParser
   return $! FetchResponse topicNameLen topicsName numPayloads payloads
 
-rsFtPayloadParser :: Get RsPayload 
-rsFtPayloadParser = do 
+rsFtPayloadParser :: Get RsPayload
+rsFtPayloadParser = do
   partition <- getWord32be
   errorCode <- getWord16be
   hwMarkOffset <- getWord64be
@@ -233,44 +233,44 @@ rsFtPayloadParser = do
 -- Metdata Response (Md)
 ---------------------
 rsMdPartitionMdParser :: Get RsMdPartitionMetadata
-rsMdPartitionMdParser = do 
+rsMdPartitionMdParser = do
   errorcode <- getWord16be
   partition <- getWord32be
   leader <- getWord32be
   numreplicas <- getWord32be
-  replicas <- parseList (fromIntegral numreplicas) getWord32be 
+  replicas <- parseList (fromIntegral numreplicas) getWord32be
   numIsr <- getWord32be
   isrs <- parseList (fromIntegral numIsr) getWord32be
   return $! RsMdPartitionMetadata errorcode partition leader numreplicas replicas numIsr isrs
 
 rsMdPayloadTopicParser :: Get RsPayload
-rsMdPayloadTopicParser = do 
-  errorcode <- getWord16be 
+rsMdPayloadTopicParser = do
+  errorcode <- getWord16be
   topicNameLen <- getWord16be
-  topicName <- getByteString $ fromIntegral topicNameLen 
-  numPartition <- getWord32be 
+  topicName <- getByteString $ fromIntegral topicNameLen
+  numPartition <- getWord32be
   partitions <- parseList (fromIntegral numPartition) rsMdPartitionMdParser
-  return $! RsMdPayloadTopic errorcode topicNameLen topicName numPartition partitions 
+  return $! RsMdPayloadTopic errorcode topicNameLen topicName numPartition partitions
 
-rsMdPayloadBrokerParser :: Get RsPayload 
-rsMdPayloadBrokerParser = do 
-  node <- getWord32be 
+rsMdPayloadBrokerParser :: Get RsPayload
+rsMdPayloadBrokerParser = do
+  node <- getWord32be
   hostLen <- getWord16be
   host <- getByteString $ fromIntegral hostLen
-  port <- getWord32be 
+  port <- getWord32be
   return $! RsMdPayloadBroker node hostLen host port
 
-metadataResponseParser :: Get Response 
-metadataResponseParser = do 
+metadataResponseParser :: Get Response
+metadataResponseParser = do
   numBrokers <- getWord32be
   brokers <- parseList (fromIntegral numBrokers) rsMdPayloadBrokerParser
   numTopics   <- getWord32be
   topics <- parseList (fromIntegral numTopics) rsMdPayloadTopicParser
-  return $! MetadataResponse numBrokers brokers numTopics topics 
+  return $! MetadataResponse numBrokers brokers numTopics topics
 
-metadataResponseMessageParser :: Get ResponseMessage 
-metadataResponseMessageParser = do 
-  correlationId <- getWord32be 
+metadataResponseMessageParser :: Get ResponseMessage
+metadataResponseMessageParser = do
+  correlationId <- getWord32be
   unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) metadataResponseParser

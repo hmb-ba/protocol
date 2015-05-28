@@ -2,7 +2,7 @@ module Kafka.Client.Producer
 (  packPrRqMessage
  , decodePrResponse
 )
-where 
+where
 
 import Kafka.Protocol
 
@@ -11,14 +11,18 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Digest.CRC32
 import Data.Binary.Get
 
-import qualified Control.Exception as E 
+import qualified Control.Exception as E
 
+-- FIXME (meiersi): introduce at least type synonyms for the different kinds
+-- of 'ByteString's in the arguments. Ideally, use 'Tagged' from
+-- <http://hackage.haskell.org/package/tagged-0.8.0.1/docs/Data-Tagged.html>
+-- to cheaply introduce /different/ types.
 packPrRqMessage :: (BS.ByteString, BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
 packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
       rqSize = fromIntegral $ (BL.length $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
-          + 4 -- correlationId 
+          + 4 -- correlationId
           + 2 -- clientIdLen
           + (fromIntegral $ BS.length client) --clientId
     , rqApiKey = 0
@@ -28,13 +32,17 @@ packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
     , rqClientId = client
     , rqRequest = produceRequest
   }
+  -- FIXME (meiersi): the formatting of both the record above and the where
+  -- clause below seems quite arbitrary. Have a look at 
+  -- <https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md>
+  -- for a base set of rules that a lot of Haskell code is following.
   where produceRequest = ProduceRequest
                           0
                           1500
                           (fromIntegral $ length [packTopic])
                           [packTopic]
         packTopic = RqTopic
-                          (fromIntegral $ BS.length topic) 
+                          (fromIntegral $ BS.length topic)
                           topic
                           (fromIntegral $ length [packPartition])
                           ([packPartition])

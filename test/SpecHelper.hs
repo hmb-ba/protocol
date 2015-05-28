@@ -5,5 +5,5 @@ module SpecHelper
     ) where
 
 import Kafka.Protocol
-import SpecFixtures 
+import SpecFixtures
 import Test.Hspec
