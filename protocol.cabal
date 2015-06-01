@@ -22,10 +22,7 @@ library
   -- documentation more compact and simplify the usage of your code.
   exposed-modules:
     Kafka.Client,
-    Kafka.Client.Producer,
-    Kafka.Client.Consumer,
-    Kafka.Client.Common,
-    Kafka.Protocol,
+    Kafka.Protocol
     Kafka.Protocol.Types,
     Kafka.Protocol.Decode,
     Kafka.Protocol.Encode
@@ -35,7 +32,8 @@ library
     bytestring >= 0.10 && < 0.11,
     binary >=0.6 && <0.8,
     network >= 2.4,
-    digest -any
+    digest -any,
+    text -any
 
   default-language: Haskell2010
 
