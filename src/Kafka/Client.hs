@@ -22,7 +22,7 @@ import Data.Binary.Put
 import qualified Control.Exception as E
 
 import qualified Data.Text as T 
-import Data.Text.Encoding 
+import Data.Text.Encoding
 
 import Network.Socket
 import qualified Network.Socket.ByteString.Lazy as SBL
@@ -51,14 +51,18 @@ sendRequest socket requestMessage = do
 -- converting between 'TopicNames' and 'String', 'Text', etc., which properly
 -- handles issues such as invalid characters in topic names like the ones that
 -- lead to this problem <https://issues.apache.org/jira/browse/KAFKA-495>.
+data Topic a = TopicB BS.ByteString | TopicS String | TopicT T.Text
 
---data T = T BL.ByteString 
+toTopic :: Topic a -> Topic BS.ByteString
+toTopic (TopicB b) = TopicB b
+toTopic (TopicS s) = TopicB $ BC.pack s 
+toTopic (TopicT t) = TopicB $ encodeUtf8 t 
 
---topicToString :: T -> String 
---topicToString t  = C.unpack a 
+--topicToText :: T BL.ByteString -> T.Text
+--topicToText t = decodeUtf8 t
 
---topicToText :: T -> T.Text
---topicToText t = decodeUtf8 a 
+--toTopic :: String -> BL.ByteString
+--toTopic s =  BC.pack s 
 
 packTopicName :: [Char] -> RqTopicName
 packTopicName t = RqTopicName (fromIntegral $ length t) (BC.pack t)
@@ -98,8 +102,8 @@ decodeMdResponse b = runGet metadataResponseMessageParser b
 -- of 'ByteString's in the arguments. Ideally, use 'Tagged' from
 -- <http://hackage.haskell.org/package/tagged-0.8.0.1/docs/Data-Tagged.html>
 -- to cheaply introduce /different/ types.
-packPrRqMessage :: (BS.ByteString, BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
-packPrRqMessage (client, topic, partition, inputData) = RequestMessage {
+packPrRqMessage :: (BS.ByteString, Topic BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
+packPrRqMessage (client, (TopicB topic), partition, inputData) = RequestMessage {
       rqSize = fromIntegral $ (BL.length $ runPut $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
