@@ -8,7 +8,7 @@ module Kafka.Client
 , encodeMdRequest
 , decodeMdResponse
 , Topic (..)
-, toTopic
+, stringToTopic
 ) where
 
 import Kafka.Protocol
@@ -50,12 +50,28 @@ sendRequest socket requestMessage = do
 -- converting between 'TopicNames' and 'String', 'Text', etc., which properly
 -- handles issues such as invalid characters in topic names like the ones that
 -- lead to this problem <https://issues.apache.org/jira/browse/KAFKA-495>.
-data Topic a = TopicB BS.ByteString | TopicS String | TopicT T.Text
+--data Topic a = TopicB BS.ByteString | TopicS String | TopicT T.Text
 
-toTopic :: Topic a -> Topic BS.ByteString
-toTopic (TopicB b) = TopicB b
-toTopic (TopicS s) = TopicB $ BC.pack s 
-toTopic (TopicT t) = TopicB $ encodeUtf8 t 
+data Topic a = Topic BS.ByteString 
+
+stringToTopic :: String -> Topic a 
+stringToTopic s = Topic $ BC.pack s
+
+textToTopic :: T.Text -> Topic a
+textToTopic t = Topic $ encodeUtf8 t 
+
+data Client a = Client BS.ByteString
+
+stringToClientId :: String -> Client a 
+stringToClientId s = Client $ BC.pack s
+
+textToClientID :: T.Text -> Client a 
+textToClientID t = Client $ encodeUtf8 t
+
+--toTopic :: Topic a -> Topic BS.ByteString
+--toTopic (TopicB b) = TopicB b
+--toTopic (TopicS s) = TopicB $ BC.pack s 
+--toTopic (TopicT t) = TopicB $ encodeUtf8 t 
 
 --topicToText :: T BL.ByteString -> T.Text
 --topicToText t = decodeUtf8 t
@@ -101,8 +117,8 @@ decodeMdResponse b = runGet metadataResponseMessageParser b
 -- of 'ByteString's in the arguments. Ideally, use 'Tagged' from
 -- <http://hackage.haskell.org/package/tagged-0.8.0.1/docs/Data-Tagged.html>
 -- to cheaply introduce /different/ types.
-packPrRqMessage :: (BS.ByteString, Topic BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
-packPrRqMessage (client, (TopicB topic), partition, inputData) = RequestMessage {
+packPrRqMessage :: (Client BS.ByteString, Topic BS.ByteString, Int, [BS.ByteString]) -> RequestMessage
+packPrRqMessage (Client client, (Topic topic), partition, inputData) = RequestMessage {
       rqSize = fromIntegral $ (BL.length $ runPut $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
