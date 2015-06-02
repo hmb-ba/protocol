@@ -33,7 +33,8 @@ library
     binary >=0.6 && <0.8,
     network >= 2.4,
     digest -any,
-    text -any
+    text -any,
+    tagged -any
 
   default-language: Haskell2010
 
