@@ -7,6 +7,8 @@ module Kafka.Client
 , encodeFtRequest
 , encodeMdRequest
 , decodeMdResponse
+, Topic (..)
+, toTopic
 ) where
 
 import Kafka.Protocol
@@ -34,10 +36,7 @@ import qualified Network.Socket.ByteString.Lazy as SBL
 sendRequest :: Socket -> RequestMessage -> IO ()
 sendRequest socket requestMessage = do
     SBL.sendAll socket msg
-    where msg = case (rqApiKey requestMessage) of
-                    0 -> runPut $ buildPrRqMessage requestMessage
-                    1 -> runPut $ buildFtRqMessage requestMessage
-                    3 -> runPut $ buildMdRqMessage requestMessage
+    where msg = runPut $ buildRqMessage requestMessage
 
 ----------------
 -- Pack Functions

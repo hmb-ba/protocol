@@ -7,10 +7,7 @@ module Kafka.Protocol.Encode
 , buildRqMessage
 , buildMessageSets
 , buildProduceRequest
-, buildPrRqMessage
 , buildFetchRequest
-, buildFtRqMessage
-, buildMdRqMessage
 , buildMetadataRequest
 
 , buildPrResponseMessage
@@ -24,7 +21,6 @@ import Kafka.Protocol.Types
 import Data.Digest.CRC32
 import qualified Network.Socket.ByteString.Lazy as SBL
 
-
 --------------------------------------------------------
 -- Common
 --------------------------------------------------------
@@ -36,10 +32,23 @@ buildList builder (x:xs) = do
   builder x
   buildList builder xs
 
+buildRqMessage :: RequestMessage -> Put
+buildRqMessage e = do
+  putWord32be $ rqSize e
+  putWord16be $ rqApiKey e
+  putWord16be $ rqApiVersion e
+  putWord32be $ rqCorrelationId e
+  putWord16be $ rqClientIdLen e
+  putByteString $ rqClientId e
+  case (fromIntegral $ rqApiKey e) of
+    0 -> buildProduceRequest  $ rqRequest e
+    1 -> buildFetchRequest    $ rqRequest e
+    3 -> buildMetadataRequest $ rqRequest e
+    -- further API Codes 
+
 --------------------------------------------------------
 -- Data
 --------------------------------------------------------
-
 buildMessageSet :: MessageSet -> Put
 buildMessageSet e = do
   putWord64be $ offset e
@@ -63,17 +72,6 @@ buildPayload e = do
 --------------------------------------------------------
 -- Request
 --------------------------------------------------------
-
-buildRqMessage :: RequestMessage -> (Request -> Put) -> Put
-buildRqMessage e rb = do
-  putWord32be $ rqSize e
-  putWord16be $ rqApiKey e
-  putWord16be $ rqApiVersion e
-  putWord32be $ rqCorrelationId e
-  putWord16be $ rqClientIdLen e
-  putByteString $ rqClientId e
-  rb $ rqRequest e
-
 buildTopic :: (Partition -> Put) -> RqTopic -> Put
 buildTopic pb t = do
   putWord16be         $ rqTopicNameLen t
@@ -109,9 +107,6 @@ buildProduceRequest e = do
   putWord32be $ rqPrNumTopics e
   buildList (buildTopic buildRqPrPartition) $ rqPrTopics e
 
-buildPrRqMessage :: RequestMessage -> Put
-buildPrRqMessage rm = buildRqMessage rm buildProduceRequest
-
 -------------------------------
 -- Fetch Request
 -------------------------------
@@ -130,9 +125,6 @@ buildFetchRequest e = do
   putWord32be $ rqFtNumTopics e
   buildList (buildTopic buildRqFtPartition) $ rqFtTopics e
 
-buildFtRqMessage :: RequestMessage -> Put
-buildFtRqMessage rm = buildRqMessage rm buildFetchRequest
-
 -------------------------------
 -- Metadata Request
 -------------------------------
@@ -140,10 +132,6 @@ buildMetadataRequest :: Request -> Put
 buildMetadataRequest e = do
   putWord32be $ rqMdNumTopics e
   buildList buildRqTopicName $ rqMdTopicNames e
-
-buildMdRqMessage :: RequestMessage -> Put
-buildMdRqMessage rm = buildRqMessage rm buildMetadataRequest
-
 -------------------------------
 -- Offset Request
 -------------------------------
@@ -158,11 +146,6 @@ buildOffsetRequest e = do
   putWord32be     $ rqOfReplicaId e
   putWord32be     $ rqOfNumTopics e
   buildList (buildTopic buildRqOfPartition) $ rqOfTopics e
-
-buildOfRqMessage :: RequestMessage -> Put
-buildOfRqMessage rm = buildRqMessage rm buildOffsetRequest
-
-
 
 --------------------------------------------------------
 -- Response
