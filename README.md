@@ -6,9 +6,9 @@ On top of this, a client library is provided which can be used to build consumer
 
 ### Current State
 
-- [ ] Metadata API
+- [x] Metadata API
   - [x] Topic Metadata Request
-  - [ ] Metadata Response
+  - [x] Metadata Response
 - [x] Produce API
     - [x] Produce Request
     - [x] Produce Response
