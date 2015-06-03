@@ -1,19 +1,27 @@
+{- |
+Module      :  Kafka.Protocol.Encode
+Description :  Encode to Apache Kafka Protocol compatible binary format
+Copyright   :  (c) Marc Juchli, Lorenz Wolf
+License     :
+Maintainer  :  mail@marcjuch.li, lorenz.wolf@bluewin.ch
+Stability   :  experimental
+Portability :  portable
+-}
 module Kafka.Protocol.Encode
-(
-  buildMessageSet
-, buildMessage
-, buildPayload
+    ( buildMessageSet
+    , buildMessage
+    , buildPayload
 
-, buildRqMessage
-, buildMessageSets
-, buildProduceRequest
-, buildFetchRequest
-, buildMetadataRequest
+    , buildRqMessage
+    , buildMessageSets
+    , buildProduceRequest
+    , buildFetchRequest
+    , buildMetadataRequest
 
-, buildPrResponseMessage
-, buildFtRsMessage
-, buildMdRsMessage
-) where
+    , buildPrResponseMessage
+    , buildFtRsMessage
+    , buildMdRsMessage
+    ) where
 
 import qualified Data.ByteString.Lazy as BL
 import Data.Binary.Put
@@ -21,16 +29,53 @@ import Kafka.Protocol.Types
 import Data.Digest.CRC32
 import qualified Network.Socket.ByteString.Lazy as SBL
 
---------------------------------------------------------
--- Common
---------------------------------------------------------
+-------------------------------------------------------------------------------
+-- | Common
+-------------------------------------------------------------------------------
 
+-- | Generic list building that takes a builder function and a list
 buildList :: (a -> Put) -> [a] -> Put
 buildList builder [] = putLazyByteString BL.empty
 buildList builder [x] = builder x
-buildList builder (x:xs) = do 
+buildList builder (x:xs) = do
   builder x
   buildList builder xs
+
+
+-------------------------------------------------------------------------------
+-- | Data
+-------------------------------------------------------------------------------
+
+buildMessageSets :: [MessageSet] -> Put
+buildMessageSets [] = putLazyByteString BL.empty
+buildMessageSets [x] = buildMessageSet x
+buildMessageSets (x:xs) = do
+  buildMessageSet x
+  buildMessageSets xs
+
+buildMessageSet :: MessageSet -> Put
+buildMessageSet e = do
+  putWord64be $ offset e
+  putWord32be $ len e
+  buildMessage $ message e
+
+buildMessage :: Message -> Put
+buildMessage e = do
+  putWord32be $ crc e
+  buildPayload $ payload e
+
+buildPayload :: Payload -> Put
+buildPayload e = do
+  putWord8    $ magic e
+  putWord8    $ attr e
+  putWord32be $ keylen $ e
+  putWord32be $ payloadLen $ e
+  putByteString $ payloadData $ e
+
+
+-------------------------------------------------------------------------------
+-- | Request
+-------------------------------------------------------------------------------
 
 buildRqMessage :: RequestMessage -> Put
 buildRqMessage e = do
@@ -44,34 +89,8 @@ buildRqMessage e = do
     0 -> buildProduceRequest  $ rqRequest e
     1 -> buildFetchRequest    $ rqRequest e
     3 -> buildMetadataRequest $ rqRequest e
-    -- further API Codes 
+    -- further API Codes not implemented yet
 
---------------------------------------------------------
--- Data
---------------------------------------------------------
-buildMessageSet :: MessageSet -> Put
-buildMessageSet e = do
-  putWord64be $ offset e
-  putWord32be $ len e
-  buildMessage $ message e
-
-buildMessage :: Message -> Put
-buildMessage e = do
-  putWord32be $ crc e
-  buildPayload $ payload e
-
-buildPayload :: Payload -> Put 
-buildPayload e = do
-  putWord8    $ magic e
-  putWord8    $ attr e
-  putWord32be $ keylen $ e
-  putWord32be $ payloadLen $ e
-  putByteString $ payloadData $ e
-
-
---------------------------------------------------------
--- Request
---------------------------------------------------------
 buildTopic :: (Partition -> Put) -> RqTopic -> Put
 buildTopic pb t = do
   putWord16be         $ rqTopicNameLen t
@@ -84,21 +103,12 @@ buildRqTopicName e = do
   putWord16be         $ topicNameLen e
   putByteString       $ topicName e
 
--------------------------------
--- Produce Request
--------------------------------
-buildMessageSets :: [MessageSet] -> Put
-buildMessageSets [] = putLazyByteString BL.empty
-buildMessageSets [x] = buildMessageSet x 
-buildMessageSets (x:xs) = do 
-  buildMessageSet x
-  buildMessageSets xs
-
+-- | Produce Request
 buildRqPrPartition :: Partition -> Put
 buildRqPrPartition e = do
   putWord32be $ rqPrPartitionNumber e
   putWord32be $ rqPrMessageSetSize e
-  buildMessageSets $ rqPrMessageSet e 
+  buildMessageSets $ rqPrMessageSet e
 
 buildProduceRequest :: Request -> Put
 buildProduceRequest e = do
@@ -107,10 +117,7 @@ buildProduceRequest e = do
   putWord32be $ rqPrNumTopics e
   buildList (buildTopic buildRqPrPartition) $ rqPrTopics e
 
--------------------------------
--- Fetch Request
--------------------------------
-
+-- | Fetch Request
 buildRqFtPartition :: Partition -> Put
 buildRqFtPartition p = do
   putWord32be $ rqFtPartitionNumber p
@@ -125,16 +132,13 @@ buildFetchRequest e = do
   putWord32be $ rqFtNumTopics e
   buildList (buildTopic buildRqFtPartition) $ rqFtTopics e
 
--------------------------------
--- Metadata Request
--------------------------------
+-- | Metadata Request
 buildMetadataRequest :: Request -> Put
 buildMetadataRequest e = do
   putWord32be $ rqMdNumTopics e
   buildList buildRqTopicName $ rqMdTopicNames e
--------------------------------
--- Offset Request
--------------------------------
+
+-- | Offset Request
 buildRqOfPartition :: Partition -> Put
 buildRqOfPartition e = do
   putWord32be     $ rqOfPartitionNumber e
@@ -147,15 +151,15 @@ buildOffsetRequest e = do
   putWord32be     $ rqOfNumTopics e
   buildList (buildTopic buildRqOfPartition) $ rqOfTopics e
 
---------------------------------------------------------
--- Response
---------------------------------------------------------
 
+-------------------------------------------------------------------------------
+-- Response
+-------------------------------------------------------------------------------
 
 buildRsMessage :: (Response -> Put) -> ResponseMessage -> Put
 buildRsMessage rsBuilder rm = do
   putWord32be       $ rsCorrelationId rm
-  putWord32be       $ fromIntegral 0  --TODO: Unkown Word32 from original kafka response
+  putWord32be       $ fromIntegral 0  -- | Unkown Word32 from original kafka response
   putWord32be       $ rsNumResponses rm
   buildList rsBuilder $ rsResponses rm
 
@@ -166,9 +170,7 @@ buildRsTopic b t = do
   putWord32be $ rsNumPayloads t
   buildList buildRsPrPayload $ rsPayloads t
 
---------------------
--- Produce Response (Pr)
---------------------
+-- | Produce Response (Pr)
 buildRsPrPayload :: RsPayload -> Put
 buildRsPrPayload e = do
   putWord32be $ rsPrPartitionNumber e
@@ -182,10 +184,8 @@ buildProduceResponse e = do
 buildPrResponseMessage :: ResponseMessage -> Put
 buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
 
---------------------
--- Fetch Response (Ft)
---------------------
-buildFtPayload :: RsPayload -> Put 
+-- | Fetch Response (Ft)
+buildFtPayload :: RsPayload -> Put
 buildFtPayload p =do
   putWord32be       $ rsFtPartitionNumber p
   putWord16be       $ rsFtErrorCode p
@@ -203,9 +203,7 @@ buildFtRs rs = do
 buildFtRsMessage :: ResponseMessage -> Put
 buildFtRsMessage rm = buildRsMessage buildFtRs rm
 
---------------------
--- Offset Response (Of)
---------------------
+-- | Offset Response (Of)
 buildRsOfPartitionOf :: RsOfPartitionOf -> Put
 buildRsOfPartitionOf p = do
   putWord32be     $ rsOfPartitionNumber p
@@ -223,9 +221,7 @@ buildOfRs rs = do
 buildOfRsMessage :: ResponseMessage -> Put
 buildOfRsMessage rm = buildRsMessage buildOfRs rm
 
---------------------
--- Metadata Response (Md)
---------------------
+-- | Metadata Response (Md)
 buildRsMdPartitionMetadata :: RsMdPartitionMetadata -> Put
 buildRsMdPartitionMetadata p = do
   putWord16be   $ rsMdPartitionErrorCode p

@@ -1,12 +1,19 @@
+{- |
+Module      :  Kafka.Protocol.Decode
+Description :  Decode from Apache Kafka Protocol binary format
+Copyright   :  (c) Marc Juchli, Lorenz Wolf
+License     :
+Maintainer  :  mail@marcjuch.li, lorenz.wolf@bluewin.ch
+Stability   :  experimental
+Portability :  portable
+-}
 module Kafka.Protocol.Decode
-( messageSetParser
-, requestMessageParser
-
-, produceResponseMessageParser
-, fetchResponseMessageParser
-, metadataResponseMessageParser
-)
-where
+    ( messageSetParser
+    , requestMessageParser
+    , produceResponseMessageParser
+    , fetchResponseMessageParser
+    , metadataResponseMessageParser
+    ) where
 
 import Kafka.Protocol.Types
 import Data.Binary.Get
@@ -16,10 +23,13 @@ import Kafka.Protocol.Encode
 import qualified Data.ByteString as BS
 
 
---------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Common
---------------------------------------------------------
+-------------------------------------------------------------------------------
 
+
+-- | Generic and recursive parsing to create a list. First argument is the
+-- length of the list that is to be created.
 parseList :: Int -> (Get a) -> Get [a]
 parseList i p = do
   if (i < 1)
@@ -28,18 +38,25 @@ parseList i p = do
             xs <- parseList (i-1) p
             return (x:xs)
 
+-- | MessageSets are not preceded by an int32 like other array elements in the
+-- protocol. The first argument represents the lenght of the total sequence.
 parseMessageSets :: Int -> Get [MessageSet]
 parseMessageSets i = do
     if (i < 1)
     then return []
     else do messageSet <- messageSetParser
-            messageSets <- parseMessageSets $ i - (fromIntegral $ BL.length $ runPut $ buildMessageSet messageSet)
+            messageSets <- parseMessageSets $
+                              i - (fromIntegral $
+                                    BL.length $
+                                    runPut $
+                                    buildMessageSet messageSet
+                                  )
             return (messageSet:messageSets)
 
 
---------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Data
---------------------------------------------------------
+-------------------------------------------------------------------------------
 
 
 payloadParser :: Get Payload
@@ -65,9 +82,9 @@ messageSetParser = do
   return $! MessageSet offset len message
 
 
---------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Request
---------------------------------------------------------
+-------------------------------------------------------------------------------
 
 topicNameParser :: Get RqTopicName
 topicNameParser = do
@@ -84,9 +101,7 @@ topicParser p = do
   partitions    <- parseList (fromIntegral numPartitions) p
   return $ RqTopic topicNameLen topicName numPartitions partitions
 
-------------------------
--- Produce Request (Pr)
-------------------------
+-- | Produce Request (Pr)
 rqPrPartitionParser = do
   partitionNumber   <- getWord32be
   messageSetSize    <- getWord32be
@@ -101,10 +116,7 @@ produceRequestParser = do
   topics        <- parseList (fromIntegral numTopics) (topicParser rqPrPartitionParser)
   return $ ProduceRequest requiredAcks timeout numTopics topics
 
----------------------
--- Fetch Request (Ft)
----------------------
-
+-- | Fetch Request (Ft)
 rqFtPartitionParser :: Get Partition
 rqFtPartitionParser = do
   partitionNumber <- getWord32be
@@ -121,18 +133,14 @@ fetchRequestParser = do
   topics        <- parseList (fromIntegral numTopics) (topicParser rqFtPartitionParser)
   return $ FetchRequest replicaId maxWaitTime minBytes numTopics topics
 
-------------------------
--- Metadata Request (Md)
-------------------------
+-- | Metadata Request (Md)
 metadataRequestParser :: Get Request
 metadataRequestParser = do
   numTopics     <- getWord32be
   topicNames    <- parseList (fromIntegral numTopics) topicNameParser
   return $ MetadataRequest numTopics topicNames
 
-------------------------
--- Offset Request (Of)
-------------------------
+-- | Offset Request (Of)
 offsetRequestParser :: Get Request
 offsetRequestParser = do
   replicaId     <- getWord32be
@@ -146,13 +154,10 @@ rqOfPartitionParser = do
   time          <- getWord64be
   maxNumOfOf    <- getWord32be
   return $ RqOfPartition partition time maxNumOfOf
-------------------------
--- Request Message Header (Rq)
-------------------------
 
+-- | Request Message Header (Rq)
 requestMessageParser :: Get RequestMessage
 requestMessageParser = do
-  --requestSize   <- getWord32be
   apiKey        <- getWord16be
   apiVersion    <- getWord16be
   correlationId <- getWord32be
@@ -162,14 +167,13 @@ requestMessageParser = do
     0 -> produceRequestParser
     1 -> fetchRequestParser
     3 -> metadataRequestParser
-  --request <- produceRequestParser
   return $ RequestMessage 0 apiKey apiVersion correlationId clientIdLen clientId request
 
 
 
---------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Response
---------------------------------------------------------
+-------------------------------------------------------------------------------
 
 
 rsTopicParser :: (Get RsPayload) -> Get RsTopic
@@ -180,9 +184,7 @@ rsTopicParser p = do
   payloads <- parseList (fromIntegral numPayloads) p
   return $ RsTopic topicNameLen topicName numPayloads payloads
 
----------------------
--- Produce Response (Pr)
----------------------
+-- | Produce Response (Pr)
 rsPrErrorParser :: Get RsPayload
 rsPrErrorParser= do
   partitionNumber <- getWord32be
@@ -202,9 +204,8 @@ produceResponseMessageParser = do
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) produceResponseParser
   return $! ResponseMessage correlationId numResponses responses
----------------------
--- Fetch Response (Ft)
----------------------
+
+-- | Fetch Response (Ft)
 fetchResponseMessageParser :: Get ResponseMessage
 fetchResponseMessageParser = do
   correlationId <- getWord32be
@@ -230,9 +231,8 @@ rsFtPayloadParser = do
   messageSet <- parseMessageSets (fromIntegral messageSetSize)
   return $! RsFtPayload partition errorCode hwMarkOffset messageSetSize messageSet
 
----------------------
--- Metdata Response (Md)
----------------------
+
+-- | Metdata Response (Md)
 rsMdPartitionMdParser :: Get RsMdPartitionMetadata
 rsMdPartitionMdParser = do
   errorcode <- getWord16be

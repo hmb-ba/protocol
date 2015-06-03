@@ -1,18 +1,32 @@
+{- |
+Module      :  Kafka.Client
+Description :  Client library of HMB/Apache Kafka
+Copyright   :  (c) Marc Juchli, Lorenz Wolf
+License     :
+Maintainer  :  mail@marcjuch.li, lorenz.wolf@bluewin.ch
+Stability   :  experimental
+Portability :  portable
+
+Provides simplified abstraction of the protocol types and allows to send
+Apache Kafka compatible requests over sockets. Additionally exposes functions
+to decode response messages.
+
+-}
 module Kafka.Client
-( sendRequest
-, packPrRqMessage
-, packFtRqMessage
-, decodePrResponse
-, decodeFtResponse
-, decodeMdResponse
-, Data (..)
-, T (..)
-, P (..)
-, stringToTopic
-, textToTopic
-, stringToClientId
-, textToClientId
-) where
+    ( sendRequest
+    , packPrRqMessage
+    , packFtRqMessage
+    , decodePrResponse
+    , decodeFtResponse
+    , decodeMdResponse
+    , Data (..)
+    , T (..)
+    , P (..)
+    , stringToTopic
+    , textToTopic
+    , stringToClientId
+    , textToClientId
+    ) where
 
 import Kafka.Protocol
 
@@ -27,13 +41,13 @@ import Data.Tagged
 
 import qualified Control.Exception as E
 
-import qualified Data.Text as T 
+import qualified Data.Text as T
 import Data.Text.Encoding
 
 import Network.Socket
 import qualified Network.Socket.ByteString.Lazy as SBL
 -------------------
---Send Functions 
+--Send Functions
 ------------------
 sendRequest :: Socket -> RequestMessage -> IO ()
 sendRequest socket requestMessage = do
@@ -99,12 +113,12 @@ packPrRqMessage (Client client) (Data ts)  = RequestMessage
     , rqClientId = client
     , rqRequest = produceRequest
   }
-  where 
+  where
     produceRequest = ProduceRequest
                           0
                           1500
                           (fromIntegral $ length $ pts ts)
-                          (pts ts) 
+                          (pts ts)
     pts ts = (map packTopic $ ts)
     packTopic (T (TopicName' t) ps) = RqTopic
                           (fromIntegral $ BS.length $ t)
