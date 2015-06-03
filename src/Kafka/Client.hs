@@ -13,15 +13,18 @@ to decode response messages.
 
 -}
 module Kafka.Client
-    ( sendRequest
-    , packPrRqMessage
-    , packFtRqMessage
+    ( Req (..)
+    , Head (..)
+    , ToTopic (..)
+    , ToPart (..)
+    , FromTopic (..)
+    , FromPart (..)
+    , OfTopic (..)
+    , Packable (..)
+    , sendRequest
     , decodePrResponse
     , decodeFtResponse
     , decodeMdResponse
-    , Data (..)
-    , T (..)
-    , P (..)
     , stringToTopic
     , textToTopic
     , stringToClientId
@@ -46,6 +49,7 @@ import Data.Text.Encoding
 
 import Network.Socket
 import qualified Network.Socket.ByteString.Lazy as SBL
+
 -------------------
 --Send Functions
 ------------------
@@ -54,27 +58,37 @@ sendRequest socket requestMessage = do
     SBL.sendAll socket msg
     where msg = runPut $ buildRqMessage requestMessage
 
--- FIXME (meiersi): use 'Text' from the 'T.Text' library and 'encodeUtf8' to
--- create an API that uses sequences of Unicode characters for topic names.
---
--- However, I would suggest to isolate consumers from this fact by making
--- 'TopicName' an abstract type that uses an expressive enough representation
--- internally (B.ByteString probably). You can then expose a little API for
--- converting between 'TopicNames' and 'String', 'Text', etc., which properly
--- handles issues such as invalid characters in topic names like the ones that
--- lead to this problem <https://issues.apache.org/jira/browse/KAFKA-495>.
---data Topic a = TopicB BS.ByteString | TopicS String | TopicT T.Text
-
 --------------------
 --Types
 -------------------
-data Data = Data [T]
-data T = T (TopicName' BS.ByteString) [P]
-data P = P Int [M]
-type M = BS.ByteString
+data Req = Produce Head [ToTopic] | Fetch Head [FromTopic] | Metadata Head [OfTopic]
 
+class Packable a where
+  pack :: a -> RequestMessage
+
+instance Packable Req where
+  pack (Produce head ts) = packPrRqMessage head ts
+  pack (Fetch head ts) = packFtRqMessage head ts
+  pack (Metadata head ts) = packMdRqMessage head ts
+
+data Head = Head
+  { apiV      :: Int
+  , corr      :: Int
+  , client    :: BS.ByteString
+  }
 data TopicName' a = TopicName' BS.ByteString
-data Client a = Client BS.ByteString
+
+data ToTopic = ToTopic (TopicName' BS.ByteString) [ToPart]
+data ToPart = ToPart Int [Data]
+type Data = BS.ByteString
+
+data FromTopic = FromTopic (TopicName' BS.ByteString) [FromPart]
+data FromPart = FromPart
+  { partId    :: Int
+  , offset    :: Int
+  }
+
+data OfTopic = OfTopic (TopicName' BS.ByteString)
 
 ----------------
 -- Converting API
@@ -85,154 +99,137 @@ stringToTopic s = TopicName' $ BC.pack s
 textToTopic :: T.Text -> TopicName' a
 textToTopic t = TopicName' $ encodeUtf8 t
 
-stringToClientId :: String -> Client a
-stringToClientId s = Client $ BC.pack s
+stringToClientId :: String -> BS.ByteString
+stringToClientId s = BC.pack s
 
-textToClientId :: T.Text -> Client a
-textToClientId t = Client $ encodeUtf8 t
+textToClientId :: T.Text -> BS.ByteString
+textToClientId t = encodeUtf8 t
 
 --------------------
 --Pack Functions
 --------------------
--- FIXME (meiersi): the formatting of both the record above and the where
--- clause below seems quite arbitrary. Have a look at
--- <https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md>
--- for a base set of rules that a lot of Haskell code is following.
-packPrRqMessage :: Client BS.ByteString -> Data -> RequestMessage
-packPrRqMessage (Client client) (Data ts)  = RequestMessage
+-- | Pack a protocol conform RequestMessage for Produce API
+packPrRqMessage :: Head -> [ToTopic] -> RequestMessage
+packPrRqMessage head ts = RequestMessage
   { rqSize = fromIntegral $ (BL.length $ runPut $ buildProduceRequest produceRequest )
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
           + 4 -- correlationId
           + 2 -- clientIdLen
-          + (fromIntegral $ BS.length client) --clientId
+          + (fromIntegral $ BS.length $ client head ) --clientId
     , rqApiKey = 0
-    , rqApiVersion = 0
-    , rqCorrelationId = 0
-    , rqClientIdLen = fromIntegral $ BS.length client
-    , rqClientId = client
+    , rqApiVersion = fromIntegral $ apiV head
+    , rqCorrelationId = fromIntegral $ corr head
+    , rqClientIdLen = fromIntegral $ BS.length $ client head
+    , rqClientId = client head
     , rqRequest = produceRequest
   }
   where
     produceRequest = ProduceRequest
-                          0
-                          1500
-                          (fromIntegral $ length $ pts ts)
-                          (pts ts)
-    pts ts = (map packTopic $ ts)
-    packTopic (T (TopicName' t) ps) = RqTopic
-                          (fromIntegral $ BS.length $ t)
-                          t
-                          (fromIntegral $ length $ pps ps)
-                          (pps ps)
+          0
+          1500
+          (fromIntegral $ length $ pts)
+          (pts)
+    pts = (map packTopic $ ts)
+    packTopic (ToTopic (TopicName' t) ps) = RqTopic
+          (fromIntegral $ BS.length $ t)
+          t
+          (fromIntegral $ length $ pps ps)
+          (pps ps)
     pps ps = (map packPartition ps)
-    packPartition (P i ms) = RqPrPartition
-                          (fromIntegral $ i)
-                          (fromIntegral $ BL.length $ runPut $ buildMessageSets $ pms ms)
-                          (pms ms)
-    pms ms = (map packMessageSet $ ms)
+    packPartition (ToPart i ms) = RqPrPartition
+          (fromIntegral $ i)
+          (fromIntegral $ BL.length $ runPut $ buildMessageSets $ pms ms)
+          (pms ms)
+    pms ms = (map packMessageSet ms)
     packMessageSet bs = MessageSet
-                          0
-                          (fromIntegral $ BL.length $ runPut $ buildMessage $ packMessage bs)
-                          (packMessage bs)
+          0
+          (fromIntegral $ BL.length $ runPut $ buildMessage $ packMessage bs)
+          (packMessage bs)
     packMessage bs = Message
-                          (crc32 $ runPut $ buildPayload $ packPayload bs)
-                          (packPayload bs)
+          (crc32 $ runPut $ buildPayload $ packPayload bs)
+          (packPayload bs)
     packPayload bs = Payload
-                          0
-                          0
-                          0
-                          (fromIntegral $ BS.length bs)
-                          bs
+          0
+          0
+          0
+          (fromIntegral $ BS.length bs)
+          bs
 
-packTopicName :: [Char] -> RqTopicName
-packTopicName t = RqTopicName (fromIntegral $ length t) (BC.pack t)
+-- | Pack a protocol conform RequestMessage for Fetch API
+packFtRqMessage :: Head -> [FromTopic] -> RequestMessage
+packFtRqMessage head ts = RequestMessage
+  { rqSize = (fromIntegral $ (BL.length $ runPut $ buildFetchRequest $ packFtRequest)
+          + 2 -- reqApiKey
+          + 2 -- reqApiVersion
+          + 4 -- correlationId
+          + 2 -- clientIdLen
+          + (fromIntegral $ BS.length $ client head))
+    , rqApiKey = 1
+    , rqApiVersion = fromIntegral $ apiV head
+    , rqCorrelationId = fromIntegral $ corr head
+    , rqClientIdLen = fromIntegral $ BS.length $ client head
+    , rqClientId = client head
+    , rqRequest = packFtRequest
+  }
+  where
+    packFtRequest = FetchRequest
+          (-1)
+          0
+          0
+          1
+          pts
+    pts = map packTopic ts
+    packTopic (FromTopic (TopicName' t) ps) = RqTopic
+          (fromIntegral $ BS.length t)
+          t
+          (fromIntegral $ length ps)
+          (pps ps)
+    pps ps = map packPartition ps
+    packPartition (FromPart p o) = RqFtPartition
+          (fromIntegral p)
+          (fromIntegral o)
+          1048576 --TODO Maxbytes as input from client
 
-packTopicNames :: [[Char]] -> [RqTopicName]
-packTopicNames ts = map packTopicName ts
+-- | Pack a protocol conform RequestMessage for Metadata API
+packMdRqMessage :: Head -> [OfTopic] -> RequestMessage
+packMdRqMessage head ts = RequestMessage
+  { rqSize = (fromIntegral $ (BL.length $ runPut $ buildMetadataRequest $ packMdRequest)
+          + 2 -- reqApiKey
+          + 2 -- reqApiVersion
+          + 4 -- correlationId
+          + 2 -- clientIdLen
+          + (fromIntegral $ BS.length $ client head))
+    , rqApiKey = 3
+    , rqApiVersion = fromIntegral $ apiV head
+    , rqCorrelationId = fromIntegral $ corr head
+    , rqClientIdLen = fromIntegral $ BS.length $ client head
+    , rqClientId = client head
+    , rqRequest = packMdRequest
+  }
+  where
+    packMdRequest = MetadataRequest
+          (fromIntegral $ length ts)
+          pts
+    pts = map packTopic ts
+    packTopic (OfTopic (TopicName' t)) = RqTopicName
+          (fromIntegral $ BC.length t)
+          t
 
--- FIXME (meiersi): these large tuple arguments are not idiomatic Haskell.
--- Replace them with either a Record for named arguments or individual
--- arguments, whose types are ideally different enough such that callers can
--- easily avoid mistakes in the positional arguments.
-packMdRequest :: (Int, Int, [Char], [String] ) -> RequestMessage
-packMdRequest (apiV, corr, client, ts) = RequestMessage
--- FIXME (meiersi): your indentation seems to be quite arbitrary. Try to adopt
--- an indentation style that is content-independent. This will allow you to
--- easily scale to more complex code without having to invent new rules all
--- the time.
--- <https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md>
--- is a good start.
-              (fromIntegral ((BL.length $ runPut $ buildMetadataRequest $ (MetadataRequest (fromIntegral $ length ts) (packTopicNames ts))) + 2 + 2 + 4 + 2 + (fromIntegral $ length client)))
-              3
-              (fromIntegral apiV)
-              (fromIntegral corr)
-              (fromIntegral $ length client)
-              (BC.pack client)
-              (MetadataRequest (fromIntegral $ length ts) (packTopicNames ts))
+--------------------
+--Decode Responses Functions
+---------------------
 
+-- | Decode response to ResponseMessage of Produce API
+decodePrResponse :: BL.ByteString -> ResponseMessage
+decodePrResponse a = runGet produceResponseMessageParser a
+
+-- | Decode response to ResponseMessage of Fetch API
+decodeFtResponse :: BL.ByteString -> ResponseMessage
+decodeFtResponse b = runGet fetchResponseMessageParser b
+
+-- | Decode response to ResponseMessage of Metadata API
 decodeMdResponse :: BL.ByteString -> ResponseMessage
 decodeMdResponse b = runGet metadataResponseMessageParser b
 
 
-
-decodePrResponse :: BL.ByteString -> ResponseMessage
-decodePrResponse a = runGet produceResponseMessageParser a
-
----------------------
---Consumer Client API
---------------------
-packTopic :: BS.ByteString -> [Partition] -> RqTopic
-packTopic t ps = RqTopic
-    (fromIntegral $ BS.length t)
-    t
-    (fromIntegral $ length ps)
-    ps
-
-packFtRequest :: BS.ByteString -> PartitionNumber -> Offset -> Request
-packFtRequest t p o = FetchRequest
-    (-1)
-    0
-    0
-    1
-    [packTopic t [packFtPartition p o]]
-
-packFtPartition :: PartitionNumber -> Offset -> Partition
-packFtPartition p o = RqFtPartition
-    p
-    o
-    1048576
-
-packFtRqMessage :: (Int, Int, [Char], [Char], Int, Int) -> RequestMessage
-packFtRqMessage (apiV, corr, client, topic, partition, offset) = RequestMessage {
-     -- FIXME (meiersi): this line seems to be unnecessarily long. Introduce
-     -- local definitions in where clause that have telling names. Also
-     -- consider adding explicit type signatures, as the 'fromIntegral'
-     -- casting introduces a lot of uncertainty about what is really going
-     -- on.
-     rqSize = (fromIntegral $ (BL.length $ runPut $ buildFetchRequest $ packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset))
-                            + 2 -- reqApiKey
-                            + 2 -- reqApiVersion
-                            + 4 -- correlationId
-                            + 2 -- clientIdLen
-                            + (fromIntegral $ length client) -- clientId
-              )
-   , rqApiKey = 1
-   , rqApiVersion = fromIntegral apiV
-   , rqCorrelationId = fromIntegral corr
-   , rqClientIdLen = fromIntegral $ length client
-   , rqClientId = BC.pack client
-   , rqRequest = packFtRequest (BC.pack topic) (fromIntegral partition) (fromIntegral offset)
-  }
-
--------------------
--- Encode / Decode
--------------------
-
--- FIXME (meiersi): avoid partial functions!
--- FIXME (meiersi): replace magic tuple by a properly named record.
---encodeFtRequest :: (Int, Int, Int, String, String, Int, Int) -> RequestMessage
---encodeFtRequest (1, apiV, corr, client, topic, partition, offset) = packFtRqMessage (apiV, corr, client, topic, partition, offset)
-
-decodeFtResponse :: BL.ByteString -> ResponseMessage
-decodeFtResponse b = runGet fetchResponseMessageParser b
