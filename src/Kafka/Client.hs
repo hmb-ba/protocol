@@ -20,7 +20,7 @@ module Kafka.Client
 , FromTopic (..)
 , FromPart (..)
 , OfTopic (..)
-,sendRequest
+, sendRequest
 , decodePrResponse
 , decodeFtResponse
 , decodeMdResponse
