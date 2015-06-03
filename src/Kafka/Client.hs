@@ -15,6 +15,8 @@ module Kafka.Client
 , textToTopic
 , stringToClientId
 , textToClientId
+, stringToData
+, textToData
 ) where
 
 import Kafka.Protocol
@@ -39,10 +41,10 @@ import qualified Network.Socket.ByteString.Lazy as SBL
 -------------------
 --Send Functions
 ------------------
-sendRequest :: Socket -> RequestMessage -> IO ()
-sendRequest socket requestMessage = do
+sendRequest :: Socket -> Req -> IO ()
+sendRequest socket req = do
     SBL.sendAll socket msg
-    where msg = runPut $ buildRqMessage requestMessage
+    where msg = runPut $ buildRqMessage $ pack req
 
 --------------------
 --Types
@@ -90,6 +92,12 @@ stringToClientId s = BC.pack s
 
 textToClientId :: T.Text -> BS.ByteString
 textToClientId t = encodeUtf8 t
+
+stringToData :: String -> Data
+stringToData s = BC.pack s
+
+textToData :: T.Text -> Data
+textToData t = encodeUtf8 t 
 
 --------------------
 --Pack Functions
