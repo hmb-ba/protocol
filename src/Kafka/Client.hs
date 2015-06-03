@@ -77,28 +77,27 @@ data Head = Head
   , corr      :: Int
   , client    :: BS.ByteString
   }
-data TopicName' a = TopicName' BS.ByteString
 
-data ToTopic = ToTopic (TopicName' BS.ByteString) [ToPart]
+data ToTopic = ToTopic BS.ByteString [ToPart]
 data ToPart = ToPart Int [Data]
 type Data = BS.ByteString
 
-data FromTopic = FromTopic (TopicName' BS.ByteString) [FromPart]
+data FromTopic = FromTopic BS.ByteString [FromPart]
 data FromPart = FromPart
   { partId    :: Int
   , offset    :: Int
   }
 
-data OfTopic = OfTopic (TopicName' BS.ByteString)
+data OfTopic = OfTopic BS.ByteString
 
 ----------------
 -- Converting API
 ----------------
-stringToTopic :: String -> TopicName' a
-stringToTopic s = TopicName' $ BC.pack s
+stringToTopic :: String -> BS.ByteString
+stringToTopic s = BC.pack s
 
-textToTopic :: T.Text -> TopicName' a
-textToTopic t = TopicName' $ encodeUtf8 t
+textToTopic :: T.Text -> BS.ByteString
+textToTopic t = encodeUtf8 t
 
 stringToClientId :: String -> BS.ByteString
 stringToClientId s = BC.pack s
@@ -106,10 +105,10 @@ stringToClientId s = BC.pack s
 textToClientId :: T.Text -> BS.ByteString
 textToClientId t = encodeUtf8 t
 
-stringToData :: String -> Data
+stringToData :: String -> BS.ByteString
 stringToData s = BC.pack s
 
-textToData :: T.Text -> Data
+textToData :: T.Text -> BS.ByteString
 textToData t = encodeUtf8 t
 
 --------------------
@@ -138,7 +137,7 @@ packPrRqMessage head ts = RequestMessage
           (fromIntegral $ length $ pts)
           (pts)
     pts = (map packTopic $ ts)
-    packTopic (ToTopic (TopicName' t) ps) = RqTopic
+    packTopic (ToTopic t ps) = RqTopic
           (fromIntegral $ BS.length $ t)
           t
           (fromIntegral $ length $ pps ps)
@@ -187,7 +186,7 @@ packFtRqMessage head ts = RequestMessage
           1
           pts
     pts = map packTopic ts
-    packTopic (FromTopic (TopicName' t) ps) = RqTopic
+    packTopic (FromTopic t ps) = RqTopic
           (fromIntegral $ BS.length t)
           t
           (fromIntegral $ length ps)
@@ -219,7 +218,7 @@ packMdRqMessage head ts = RequestMessage
           (fromIntegral $ length ts)
           pts
     pts = map packTopic ts
-    packTopic (OfTopic (TopicName' t)) = RqTopicName
+    packTopic (OfTopic t) = RqTopicName
           (fromIntegral $ BC.length t)
           t
 
