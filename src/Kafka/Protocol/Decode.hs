@@ -199,20 +199,22 @@ produceResponseParser = do
 
 produceResponseMessageParser :: Get ResponseMessage
 produceResponseMessageParser = do
+  size <- getWord32be
   correlationId <- getWord32be
   unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) produceResponseParser
-  return $! ResponseMessage correlationId numResponses responses
+  return $! ResponseMessage size correlationId numResponses responses
 
 -- | Fetch Response (Ft)
 fetchResponseMessageParser :: Get ResponseMessage
 fetchResponseMessageParser = do
+  size <- getWord32be
   correlationId <- getWord32be
   unknown <- getWord32be
   numResponses <- getWord32be
   responses <- parseList (fromIntegral numResponses) fetchResponseParser
-  return $! ResponseMessage correlationId numResponses responses
+  return $! ResponseMessage size correlationId numResponses responses
 
 fetchResponseParser :: Get Response
 fetchResponseParser = do
@@ -261,19 +263,20 @@ rsMdPayloadBrokerParser = do
   port <- getWord32be
   return $! RsMdPayloadBroker node hostLen host port
 
-metadataResponseParser :: Get Response
-metadataResponseParser = do
-  numBrokers <- getWord32be
-  brokers <- parseList (fromIntegral numBrokers) rsMdPayloadBrokerParser
+metadataResponseParser :: Int -> Get Response
+metadataResponseParser i = do
+  --numBrokers <- getWord32be
+  brokers <- parseList (i) rsMdPayloadBrokerParser
   numTopics   <- getWord32be
   topics <- parseList (fromIntegral numTopics) rsMdPayloadTopicParser
-  return $! MetadataResponse numBrokers brokers numTopics topics
+  return $! MetadataResponse brokers numTopics topics
 
 metadataResponseMessageParser :: Get ResponseMessage
 metadataResponseMessageParser = do
+  size <- getWord32be
   correlationId <- getWord32be
   unknown <- getWord32be
   numResponses <- getWord32be
-  responses <- parseList (fromIntegral numResponses) metadataResponseParser
-  return $! ResponseMessage correlationId numResponses responses
+  responses <- parseList (fromIntegral numResponses) $ metadataResponseParser (fromIntegral $ numResponses)
+  return $! ResponseMessage size correlationId numResponses responses
 

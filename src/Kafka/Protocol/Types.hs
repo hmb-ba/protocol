@@ -256,7 +256,8 @@ type RsOftMetadata = BS.ByteString
 
 -- | Response (Rs)
 data ResponseMessage = ResponseMessage
-  { rsCorrelationId   :: !CorrelationId
+  { rsSize            :: Word32
+  , rsCorrelationId   :: !CorrelationId
   , rsNumResponses    :: !ListLength
   , rsResponses        :: [Response]
   } deriving (Show)
@@ -266,8 +267,8 @@ data Response = ProduceResponse
     rsPrTopic          :: !RsTopic
   }
   | MetadataResponse
-  { rsMdNumBroker       :: !ListLength
-  , rsMdBrokers         :: ![RsPayload]
+  { -- rsMdNumBroker       :: !ListLength
+   rsMdBrokers         :: ![RsPayload]
   , rsMdNumTopicMd      :: !ListLength
   , rsMdTopicMetadata   :: ![RsPayload]
   }

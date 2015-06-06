@@ -21,6 +21,9 @@ module Kafka.Protocol.Encode
     , buildPrResponseMessage
     , buildFtRsMessage
     , buildMdRsMessage
+
+    , buildProduceResponse
+    , buildMdRs
     ) where
 
 import qualified Data.ByteString.Lazy as BL
@@ -158,8 +161,9 @@ buildOffsetRequest e = do
 
 buildRsMessage :: (Response -> Put) -> ResponseMessage -> Put
 buildRsMessage rsBuilder rm = do
+  putWord32be       $ rsSize rm 
   putWord32be       $ rsCorrelationId rm
-  putWord32be       $ fromIntegral 0  -- | Unkown Word32 from original kafka response
+  --putWord32be       $ fromIntegral 0  -- | Unkown Word32 from original kafka response
   putWord32be       $ rsNumResponses rm
   buildList rsBuilder $ rsResponses rm
 
@@ -249,7 +253,7 @@ buildRsMdPayloadBroker p = do
 
 buildMdRs :: Response -> Put
 buildMdRs rs = do
-  putWord32be     $  rsMdNumBroker rs
+  --putWord32be     $  rsMdNumBroker rs
   buildList buildRsMdPayloadBroker $ rsMdBrokers rs
   putWord32be     $ rsMdNumTopicMd rs
   buildList buildRsMdPayloadTopic $ rsMdTopicMetadata rs
