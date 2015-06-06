@@ -163,9 +163,7 @@ buildRsMessage :: (Response -> Put) -> ResponseMessage -> Put
 buildRsMessage rsBuilder rm = do
   putWord32be       $ rsSize rm 
   putWord32be       $ rsCorrelationId rm
-  --putWord32be       $ fromIntegral 0  -- | Unkown Word32 from original kafka response
-  putWord32be       $ rsNumResponses rm
-  buildList rsBuilder $ rsResponses rm
+  rsBuilder $ rsResponses rm
 
 buildRsTopic :: (RsPayload -> Put) -> RsTopic -> Put
 buildRsTopic b t = do
@@ -182,15 +180,16 @@ buildRsPrPayload e = do
   putWord64be $ rsPrOffset e
 
 buildProduceResponse :: Response -> Put
-buildProduceResponse e = do
-  buildRsTopic buildRsPrPayload $ rsPrTopic e
+buildProduceResponse rs = do
+  putWord32be   $ rsPrNumTopic rs
+  buildList (buildRsTopic buildRsPrPayload) $ rsPrTopic rs
 
 buildPrResponseMessage :: ResponseMessage -> Put
 buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
 
 -- | Fetch Response (Ft)
-buildFtPayload :: RsPayload -> Put
-buildFtPayload p =do
+buildRsFtPayload :: RsPayload -> Put
+buildRsFtPayload p =do
   putWord32be       $ rsFtPartitionNumber p
   putWord16be       $ rsFtErrorCode p
   putWord64be       $ rsFtHwMarkOffset p
@@ -199,17 +198,15 @@ buildFtPayload p =do
 
 buildFtRs :: Response -> Put
 buildFtRs rs = do
-  putWord16be       $ rsFtTopicNameLen rs
-  putLazyByteString $ BL.fromStrict(rsFtTopicName rs)
-  putWord32be       $ rsFtNumsPayloads rs
-  buildList buildFtPayload $ rsFtPayloads rs
+  putWord32be   $ rsFtNumTopic rs
+  buildList (buildRsTopic buildRsFtPayload) $ rsFtTopic rs
 
 buildFtRsMessage :: ResponseMessage -> Put
 buildFtRsMessage rm = buildRsMessage buildFtRs rm
 
 -- | Offset Response (Of)
-buildRsOfPartitionOf :: RsOfPartitionOf -> Put
-buildRsOfPartitionOf p = do
+buildRsOfPayload :: RsPayload -> Put
+buildRsOfPayload p = do
   putWord32be     $ rsOfPartitionNumber p
   putWord64be     $ rsOfErrorCode p
   putWord32be     $ rsOfNumOffsets p
@@ -217,10 +214,8 @@ buildRsOfPartitionOf p = do
 
 buildOfRs :: Response -> Put
 buildOfRs rs = do
-  putWord16be       $ rsOfTopicNameLen rs
-  putLazyByteString $ BL.fromStrict(rsOfTopicName rs)
-  putWord32be       $ rsOfNumPartitionOfs rs
-  buildList buildRsOfPartitionOf $ rsOfPartitionOfs rs
+  putWord32be   $ rsOfNumTopic rs
+  buildList (buildRsTopic buildRsOfPayload) $ rsFtTopic rs
 
 buildOfRsMessage :: ResponseMessage -> Put
 buildOfRsMessage rm = buildRsMessage buildOfRs rm
@@ -251,9 +246,8 @@ buildRsMdPayloadBroker p = do
   putLazyByteString $ BL.fromStrict(rsMdHost p)
   putWord32be   $ rsMdPort p
 
-buildMdRs :: Response -> Put
 buildMdRs rs = do
-  --putWord32be     $  rsMdNumBroker rs
+  putWord32be     $  rsMdNumBroker rs
   buildList buildRsMdPayloadBroker $ rsMdBrokers rs
   putWord32be     $ rsMdNumTopicMd rs
   buildList buildRsMdPayloadTopic $ rsMdTopicMetadata rs

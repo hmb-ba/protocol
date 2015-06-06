@@ -194,35 +194,31 @@ rsPrErrorParser= do
 
 produceResponseParser :: Get Response
 produceResponseParser = do
-  topic <- rsTopicParser rsPrErrorParser
-  return $! ProduceResponse topic
+  len <- getWord32be
+  topics <- parseList (fromIntegral len) $ rsTopicParser rsPrErrorParser
+  return $! ProduceResponse len topics
 
 produceResponseMessageParser :: Get ResponseMessage
 produceResponseMessageParser = do
   size <- getWord32be
   correlationId <- getWord32be
-  unknown <- getWord32be
-  numResponses <- getWord32be
-  responses <- parseList (fromIntegral numResponses) produceResponseParser
-  return $! ResponseMessage size correlationId numResponses responses
+  --unknown <- getWord32be
+  response <- produceResponseParser
+  return $! ResponseMessage size correlationId response
 
 -- | Fetch Response (Ft)
 fetchResponseMessageParser :: Get ResponseMessage
 fetchResponseMessageParser = do
   size <- getWord32be
   correlationId <- getWord32be
-  unknown <- getWord32be
-  numResponses <- getWord32be
-  responses <- parseList (fromIntegral numResponses) fetchResponseParser
-  return $! ResponseMessage size correlationId numResponses responses
+  response <- fetchResponseParser
+  return $! ResponseMessage size correlationId response
 
 fetchResponseParser :: Get Response
 fetchResponseParser = do
-  topicNameLen <- getWord16be
-  topicsName <- getByteString $ fromIntegral topicNameLen
-  numPayloads <- getWord32be
-  payloads <- parseList (fromIntegral numPayloads) rsFtPayloadParser
-  return $! FetchResponse topicNameLen topicsName numPayloads payloads
+  len <- getWord32be
+  topics <- parseList (fromIntegral len) $ rsTopicParser rsFtPayloadParser
+  return $! FetchResponse len topics
 
 rsFtPayloadParser :: Get RsPayload
 rsFtPayloadParser = do
@@ -263,20 +259,18 @@ rsMdPayloadBrokerParser = do
   port <- getWord32be
   return $! RsMdPayloadBroker node hostLen host port
 
-metadataResponseParser :: Int -> Get Response
-metadataResponseParser i = do
-  --numBrokers <- getWord32be
-  brokers <- parseList (i) rsMdPayloadBrokerParser
+metadataResponseParser :: Get Response
+metadataResponseParser = do
+  numBrokers <- getWord32be
+  brokers <- parseList (fromIntegral numBrokers) rsMdPayloadBrokerParser
   numTopics   <- getWord32be
   topics <- parseList (fromIntegral numTopics) rsMdPayloadTopicParser
-  return $! MetadataResponse brokers numTopics topics
+  return $! MetadataResponse numBrokers brokers numTopics topics
 
 metadataResponseMessageParser :: Get ResponseMessage
 metadataResponseMessageParser = do
   size <- getWord32be
   correlationId <- getWord32be
-  unknown <- getWord32be
-  numResponses <- getWord32be
-  responses <- parseList (fromIntegral numResponses) $ metadataResponseParser (fromIntegral $ numResponses)
-  return $! ResponseMessage size correlationId numResponses responses
+  response <- metadataResponseParser
+  return $! ResponseMessage size correlationId response
 
