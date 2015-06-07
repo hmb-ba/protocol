@@ -78,7 +78,7 @@ testSerializeParseMessageSet :: MessageSet -> Expectation
 testSerializeParseMessageSet m = (runGet messageSetParser $ runPut $ buildMessageSet m) `shouldBe` m
 
 testSerializeParsePrReq :: RequestMessage -> Expectation
-testSerializeParsePrReq req = (runGet requestMessageParser $ runPut $ buildPrRqMessage req) `shouldBe` req
+testSerializeParsePrReq req = (runGet requestMessageParser $ runPut $ buildRqMessage req) `shouldBe` req
 
 
 

@@ -1,34 +1,68 @@
 module SpecFixtures where
 
+import Data.Binary.Put
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.ByteString.Char8 as BS
+import Data.Word
+
 import Kafka.Protocol
 
-import Data.Binary.Put
-
 getMessageSetFixture :: Message -> MessageSet
-getMessageSetFixture m = MessageSet 0 0 m
+getMessageSetFixture m = MessageSet
+  { msOffset        = 0
+  , msLen           = encodedLength $ buildMessage m
+  , msMessage       = m
+  }
 
 getMessageFixture :: Payload -> Message
-getMessageFixture p = Message 0 p
+getMessageFixture p = Message
+  { mgCrc           = 0
+  , mgPayload       = p
+  }
 
 getPayloadFixture :: [Char] -> Payload
--- FIXME (meiersi): for a reader this line is really quite magical with all
--- the similar positional arguments. Consider constructing the record with
--- named arguemnts to make your code change-proof, and make your code more
--- readable.
-getPayloadFixture s = Payload 0 0 0 (fromIntegral $ length s) (BS.pack s)
+getPayloadFixture s = Payload
+  { plMagic         = 0
+  , plAttr          = 0
+  , plKeylen        = 0
+  , plKey           = BS.empty
+  , plValueLen      = (fromIntegral $ length s)
+  , plValue         = (BS.pack s)
+  }
 
 getRequestMessageFixture :: Request -> RequestMessage
-getRequestMessageFixture r = RequestMessage 1000 0 0 1 (fromIntegral $ length "ClientId") (BS.pack "ClientId") r
+getRequestMessageFixture r = RequestMessage
+  { rqSize          = encodedLength $ buildProduceRequest r
+  , rqApiKey        = 0
+  , rqApiVersion    = 0
+  , rqCorrelationId = 0
+  , rqClientIdLen   = (fromIntegral $ length "ClientId")
+  , rqClientId      = (BS.pack "ClientId")
+  , rqRequest       = r
+  }
 
 getProduceRequestFixture :: [RqTopic] -> Request
-getProduceRequestFixture ts = ProduceRequest 0 0 (fromIntegral $ length ts) ts
+getProduceRequestFixture ts = ProduceRequest
+  { rqPrRequiredAcks = 0
+  , rqPrTimeout      = 0
+  , rqPrNumTopics    = (fromIntegral $ length ts)
+  , rqPrTopics       = ts
+  }
 
 getTopicFixture :: [Char] -> [Partition] -> RqTopic
-getTopicFixture s ps = RqTopic (fromIntegral $ length s) (BS.pack s) (fromIntegral $ length ps) ps
+getTopicFixture s ps = RqTopic
+  { rqToNameLen     = (fromIntegral $ length s)
+  , rqToName        = (BS.pack s)
+  , rqToNumPartitions    = (fromIntegral $ length ps)
+  , rqToPartitions       = ps
+  }
 
 getRqPrPartitionFixture :: [MessageSet] -> Partition
-getRqPrPartitionFixture ms = RqPrPartition 0 (fromIntegral $ BL.length $ runPut $ buildMessageSets ms ) ms
+getRqPrPartitionFixture ms = RqPrPartition
+  { rqPrPartitionNumber  = 0
+  , rqPrMessageSetSize   =  encodedLength $ buildMessageSets ms
+  , rqPrMessageSet       = ms
+  }
 
-
+encodedLength :: Put -> Word32
+encodedLength p = fromIntegral $ BL.length $ runPut p

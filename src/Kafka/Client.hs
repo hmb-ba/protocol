@@ -158,7 +158,8 @@ packPrRqMessage head ts = RequestMessage
     packPayload bs = Payload
           0
           0
-          0
+          0 -- Keylength
+          BS.empty --Key
           (fromIntegral $ BS.length bs)
           bs
 
