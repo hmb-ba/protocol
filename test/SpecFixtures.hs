@@ -32,7 +32,12 @@ getPayloadFixture s = Payload
 
 getRequestMessageFixture :: Request -> RequestMessage
 getRequestMessageFixture r = RequestMessage
-  { rqSize          = encodedLength $ buildProduceRequest r
+  { rqSize          = (encodedLength $ buildProduceRequest r)
+          + 2 -- reqApiKey
+          + 2 -- reqApiVersion
+          + 4 -- correlationId
+          + 2 -- clientIdLen
+          + (fromIntegral $ length "ClientId") --clientId
   , rqApiKey        = 0
   , rqApiVersion    = 0
   , rqCorrelationId = 0
@@ -66,3 +71,6 @@ getRqPrPartitionFixture ms = RqPrPartition
 
 encodedLength :: Put -> Word32
 encodedLength p = fromIntegral $ BL.length $ runPut p
+
+
+

@@ -157,6 +157,7 @@ rqOfPartitionParser = do
 -- | Request Message Header (Rq)
 requestMessageParser :: Get RequestMessage
 requestMessageParser = do
+  rqSize        <- getWord32be
   apiKey        <- getWord16be
   apiVersion    <- getWord16be
   correlationId <- getWord32be
@@ -166,7 +167,7 @@ requestMessageParser = do
     0 -> produceRequestParser
     1 -> fetchRequestParser
     3 -> metadataRequestParser
-  return $ RequestMessage 0 apiKey apiVersion correlationId clientIdLen clientId request
+  return $ RequestMessage rqSize apiKey apiVersion correlationId clientIdLen clientId request
 
 
 
