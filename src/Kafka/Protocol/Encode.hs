@@ -71,7 +71,7 @@ buildPayload :: Payload -> Put
 buildPayload e = do
   putWord8    $      plMagic e
   putWord8    $      plAttr e
-  putWord32be $      plKeylen $ e
+  putWord32be $      plKey e
   putWord32be $      plValueLen $ e
   putByteString $    plValue $ e
 

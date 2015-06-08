@@ -70,7 +70,7 @@ type NumOffset = Word32
 -- Data
 -------------------------------------------------------------------------------
 type MessageValue  = BS.ByteString
-type MessageKey = BS.ByteString
+type MessageKey = Word32
 type Offset = Word64
 type Crc = Word32
 type Magic = Word8
@@ -79,7 +79,10 @@ type Attributes = Word8
 data Payload = Payload
   { plMagic           :: !Magic
   , plAttr            :: !Attributes
-  , plKeylen          :: !BytesLength
+  --, plKeylen          :: !BytesLength wolflo: According to Kafka documentation
+  --the key is type bytes, therefore it should have a len field before. In
+  --actual produced message from Kafka, there is no field len for key, key is
+  --fix 32 Bit 
   , plKey             :: !MessageKey
   , plValueLen        :: !BytesLength
   , plValue           :: !MessageValue

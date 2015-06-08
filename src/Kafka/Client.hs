@@ -55,6 +55,7 @@ import qualified Network.Socket.ByteString.Lazy as SBL
 ------------------
 sendRequest :: Socket -> Req -> IO ()
 sendRequest socket req = do
+    print $ show $ BL.length msg
     SBL.sendAll socket msg
     where msg = runPut $ buildRqMessage $ pack req
 
@@ -169,8 +170,7 @@ packPrRqMessage head ts = RequestMessage
     packPayload bs = Payload
           0
           0
-          0 -- Keylength
-          BS.empty --Key
+          0 -- Key
           (fromIntegral $ BS.length bs)
           bs
 

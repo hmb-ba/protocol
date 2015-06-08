@@ -61,11 +61,10 @@ payloadParser :: Get Payload
 payloadParser = do
   magic       <- getWord8
   attr        <- getWord8
-  keylen      <- getWord32be
-  key         <- getByteString $ fromIntegral keylen
+  key      <- getWord32be
   paylen      <- getWord32be
   payload     <- getByteString $ fromIntegral paylen
-  return $! Payload magic attr keylen key paylen payload
+  return $! Payload magic attr key paylen payload
 
 messageParser :: Get Message
 messageParser = do

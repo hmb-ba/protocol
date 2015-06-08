@@ -24,8 +24,7 @@ getPayloadFixture :: [Char] -> Payload
 getPayloadFixture s = Payload
   { plMagic         = 0
   , plAttr          = 0
-  , plKeylen        = 0
-  , plKey           = BS.empty
+  , plKey           = 0
   , plValueLen      = (fromIntegral $ length s)
   , plValue         = (BS.pack s)
   }
