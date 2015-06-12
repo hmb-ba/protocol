@@ -6,6 +6,8 @@ License     :
 Maintainer  :  mail@marcjuch.li, lorenz.wolf@bluewin.ch
 Stability   :  experimental
 Portability :  portable
+
+This module exposes Encode functionalities for kafka protocol implementation.
 -}
 module Kafka.Protocol.Encode
     ( buildMessageSet
@@ -92,7 +94,7 @@ buildRqMessage e = do
     0 -> buildProduceRequest  $ rqRequest e
     1 -> buildFetchRequest    $ rqRequest e
     3 -> buildMetadataRequest $ rqRequest e
-    -- further API Codes not implemented yet
+    -- TODO: further API Codes
 
 buildTopic :: (Partition -> Put) -> RqTopic -> Put
 buildTopic pb t = do
@@ -170,7 +172,7 @@ buildRsTopic b t = do
   putWord16be $      rsTopicNameLen t
   putByteString $    rsTopicName t
   putWord32be $      rsNumPayloads t
-  buildList buildRsPrPayload $ rsPayloads t
+  buildList b $ rsPayloads t
 
 -- | Produce Response (Pr)
 buildRsPrPayload :: RsPayload -> Put

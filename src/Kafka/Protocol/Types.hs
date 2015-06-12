@@ -79,10 +79,11 @@ type Attributes = Word8
 data Payload = Payload
   { plMagic           :: !Magic
   , plAttr            :: !Attributes
-  --, plKeylen          :: !BytesLength wolflo: According to Kafka documentation
-  --the key is type bytes, therefore it should have a len field before. In
-  --actual produced message from Kafka, there is no field len for key, key is
-  --fix 32 Bit 
+  --, plKeylen          :: !BytesLength 
+  -- TODO: According to Kafka documentation
+  -- the key is type bytes, therefore it should have a len field before. In
+  -- actual produced message from Kafka, there is no field len for key. To
+  -- provide compatibility with tested version keylen is commented out. 
   , plKey             :: !MessageKey
   , plValueLen        :: !BytesLength
   , plValue           :: !MessageValue
@@ -136,10 +137,6 @@ data RequestMessage = RequestMessage
   , rqRequest            :: Request
   } deriving (Show, Eq)
 
--- NOTE (meiersi): the field accessors generated from your declaration are all
--- partial functions. You can avoid that by introducing proper records for all
--- the constructors and the create 'Request' such that it just tags these
--- individual types.
 data Request = ProduceRequest
   { rqPrRequiredAcks     :: !RequiredAcks
   , rqPrTimeout          :: !Timeout

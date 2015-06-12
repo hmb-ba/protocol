@@ -6,6 +6,10 @@ License     :
 Maintainer  :  mail@marcjuch.li, lorenz.wolf@bluewin.ch
 Stability   :  experimental
 Portability :  portable
+
+This module exposes functions for decoding requests and responses of kafka
+prototol implemention.
+
 -}
 module Kafka.Protocol.Decode
     ( messageSetParser

@@ -50,18 +50,18 @@ import Kafka.Protocol
 import Network.Socket
 import qualified Network.Socket.ByteString.Lazy as SBL
 
--------------------
---Send Functions
-------------------
+----------------
+-- Types
+----------------
+
+-- | Pack and encode given Request of Type Req and send via given socket
 sendRequest :: Socket -> Req -> IO ()
 sendRequest socket req = do
     print $ show $ BL.length msg
     SBL.sendAll socket msg
     where msg = runPut $ buildRqMessage $ pack req
 
---------------------
---Types
--------------------
+-- | Request Type
 data Req = Produce Head [ToTopic] | Fetch Head [FromTopic] | Metadata Head [OfTopic]
 
 class Packable a where
@@ -72,42 +72,55 @@ instance Packable Req where
   pack (Fetch head ts) = packFtRqMessage head ts
   pack (Metadata head ts) = packMdRqMessage head ts
 
+-- | Header information each request includes
 data Head = Head
   { apiV      :: Int
   , corr      :: Int
   , client    :: BS.ByteString
   }
 
+-- | Topic for Produce Request
 data ToTopic = ToTopic BS.ByteString [ToPart]
+-- | Partition for Produce Request
 data ToPart = ToPart Int [Data]
 type Data = BS.ByteString
 
+-- | Topic for Fetch Request
 data FromTopic = FromTopic BS.ByteString [FromPart]
+-- | Partition for Fetch Request
 data FromPart = FromPart
   { partId    :: Int
   , offset    :: Int
   }
 
+-- | Topic for Metadata Request
 data OfTopic = OfTopic BS.ByteString
 
 ----------------
 -- Converting API
 ----------------
+
+-- | Convert string to topicsName (ByteString)
 stringToTopic :: String -> BS.ByteString
 stringToTopic s = BC.pack s
 
+-- | Convert Data.Text to topicsName (ByteString)
 textToTopic :: T.Text -> BS.ByteString
 textToTopic t = encodeUtf8 t
 
+-- | Convert string to clientId (ByteString)
 stringToClientId :: String -> BS.ByteString
 stringToClientId s = BC.pack s
 
+-- | Convert Data.Text to clientId (ByteString)
 textToClientId :: T.Text -> BS.ByteString
 textToClientId t = encodeUtf8 t
 
+-- | Convert string to message data (ByteString)
 stringToData :: String -> BS.ByteString
 stringToData s = BC.pack s
 
+-- | Convert Data.Text to message data (ByteString)
 textToData :: T.Text -> BS.ByteString
 textToData t = encodeUtf8 t
 
@@ -126,6 +139,7 @@ arrayLength xs = fromIntegral $ length xs
 --------------------
 --Pack Functions
 --------------------
+
 -- | Pack a protocol conform RequestMessage for Produce API
 packPrRqMessage :: Head -> [ToTopic] -> RequestMessage
 packPrRqMessage head ts = RequestMessage
