@@ -143,6 +143,12 @@ arrayLength xs = fromIntegral $ length xs
 -- | Pack a protocol conform RequestMessage for Produce API
 packPrRqMessage :: Head -> [ToTopic] -> RequestMessage
 packPrRqMessage head ts = RequestMessage
+  -- FIXME (SM): I wager that downstream consumers of this function are
+  -- going to call 'buildProduceRequest' again. This unnecessarily duplicates
+  -- the work. I'd suggest that you restructure the code such that the request
+  -- is built at most once, or if this is not possible I'd suggest to
+  -- introduce special functions that compute the length of the message
+  -- *without* computing the actual sequence of bytes.
   { rqSize = (encodedLength $ buildProduceRequest produceRequest)
           + 2 -- reqApiKey
           + 2 -- reqApiVersion
