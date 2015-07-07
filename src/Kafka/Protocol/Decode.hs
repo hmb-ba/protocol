@@ -40,6 +40,8 @@ parseList i p = do
     else do x <- p
             xs <- parseList (i-1) p
             return (x:xs)
+  -- FIXME (SM): Use the standard libraries. 'parseList' is just an instance
+  -- of 'replicateM'.
 
 -- | MessageSets are not preceded by an int32 like other array elements in the
 -- protocol. The first argument represents the lenght of the total sequence.
@@ -48,6 +50,10 @@ parseMessageSets i = do
     if (i < 1)
     then return []
     else do messageSet <- messageSetParser
+            -- FIXME (SM): This seems to be highly inefficient. For each
+            -- messageSet you have to build the previous one to get its
+            -- length. You should just return that length in the
+            -- 'messageSetParser' together with the parsed message set.
             messageSets <- parseMessageSets $
                               i - (fromIntegral $
                                     BL.length $
@@ -63,11 +69,15 @@ parseMessageSets i = do
 
 payloadParser :: Get Payload
 payloadParser = do
+  -- FIXME (SM): what style of alignment are you using here?
   magic       <- getWord8
   attr        <- getWord8
   key      <- getWord32be
   paylen      <- getWord32be
   payload     <- getByteString $ fromIntegral paylen
+  -- FIXME (SM): use explicit record field assignments to make this code
+  -- robust. It is too easy to hide a stupid mistake in the positional
+  -- assignments that all have the same type.
   return $! Payload magic attr key paylen payload
 
 messageParser :: Get Message
@@ -166,10 +176,15 @@ requestMessageParser = do
   correlationId <- getWord32be
   clientIdLen   <- getWord16be
   clientId      <- getByteString $ fromIntegral clientIdLen
+  -- FIXME (SM): why do you use from integral here? You can pattern-match as
+  -- well on the Word16
   request       <- case (fromIntegral apiKey) of
     0 -> produceRequestParser
     1 -> fetchRequestParser
     3 -> metadataRequestParser
+    -- FIXME (SM): the missing default-case will make this function fail hard
+    -- instead of resutling in a parse failure with an informative error
+    -- message.
   return $ RequestMessage rqSize apiKey apiVersion correlationId clientIdLen clientId request
 
 
