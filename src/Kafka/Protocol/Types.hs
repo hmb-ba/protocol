@@ -45,13 +45,14 @@ module Kafka.Protocol.Types
     , RsMdPartitionMetadata (..)
     ) where
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as BL
-import Data.Word
+import           Data.Word
 
 -------------------------------------------------------------------------------
 -- Common
 -------------------------------------------------------------------------------
+--newtype StringLength = StringLength Word16 deriving (Show, Eq)
 type StringLength = Word16
 type ListLength = Word32
 type BytesLength = Word32
@@ -77,27 +78,27 @@ type Magic = Word8
 type Attributes = Word8
 
 data Payload = Payload
-  { plMagic           :: !Magic
-  , plAttr            :: !Attributes
-  --, plKeylen          :: !BytesLength 
+  { plMagic    :: !Magic
+  , plAttr     :: !Attributes
+  --, plKeylen          :: !BytesLength
   -- TODO: According to Kafka documentation
   -- the key is type bytes, therefore it should have a len field before. In
   -- actual produced message from Kafka, there is no field len for key. To
-  -- provide compatibility with tested version keylen is commented out. 
-  , plKey             :: !MessageKey
-  , plValueLen        :: !BytesLength
-  , plValue           :: !MessageValue
+  -- provide compatibility with tested version keylen is commented out.
+  , plKey      :: !MessageKey
+  , plValueLen :: !BytesLength
+  , plValue    :: !MessageValue
   } deriving (Show, Eq)
 
 data Message = Message
-  { mgCrc             :: !Crc
-  , mgPayload         :: !Payload
+  { mgCrc     :: !Crc
+  , mgPayload :: !Payload
   } deriving (Show, Eq)
 
 data MessageSet = MessageSet
-  { msOffset          :: !Offset
-  , msLen             :: !BytesLength
-  , msMessage         :: !Message
+  { msOffset  :: !Offset
+  , msLen     :: !BytesLength
+  , msMessage :: !Message
   } deriving (Show, Eq)
 
 type Log = [MessageSet]
@@ -128,55 +129,55 @@ type Metadata = BS.ByteString
 
 -- | Request (rq)
 data RequestMessage = RequestMessage
-  { rqSize               :: !RequestSize
-  , rqApiKey             :: !ApiKey
-  , rqApiVersion         :: !ApiVersion
-  , rqCorrelationId      :: !CorrelationId
-  , rqClientIdLen        :: !StringLength
-  , rqClientId           :: !ClientId
-  , rqRequest            :: Request
+  { rqSize          :: !RequestSize
+  , rqApiKey        :: !ApiKey
+  , rqApiVersion    :: !ApiVersion
+  , rqCorrelationId :: !CorrelationId
+  , rqClientIdLen   :: !StringLength
+  , rqClientId      :: !ClientId
+  , rqRequest       :: Request
   } deriving (Show, Eq)
 
 data Request = ProduceRequest
-  { rqPrRequiredAcks     :: !RequiredAcks
-  , rqPrTimeout          :: !Timeout
-  , rqPrNumTopics        :: !ListLength
-  , rqPrTopics           :: ![RqTopic]
+  { rqPrRequiredAcks :: !RequiredAcks
+  , rqPrTimeout      :: !Timeout
+  , rqPrNumTopics    :: !ListLength
+  , rqPrTopics       :: ![RqTopic]
   }
   | MetadataRequest
-  { rqMdNumTopics        :: !ListLength
-  , rqMdTopicNames       :: ![RqTopicName]
+  { rqMdNumTopics  :: !ListLength
+  , rqMdTopicNames :: ![RqTopicName]
   }
   | FetchRequest
-  { rqFtReplicaId        :: !ReplicaId
-  , rqFtMaxWaitTime      :: !MaxWaitTime
-  , rqFtMinBytes         :: !MinBytes
-  , rqFtNumTopics        :: !ListLength
-  , rqFtTopics           :: ![RqTopic]
+  { rqFtReplicaId   :: !ReplicaId
+  , rqFtMaxWaitTime :: !MaxWaitTime
+  , rqFtMinBytes    :: !MinBytes
+  , rqFtNumTopics   :: !ListLength
+  , rqFtTopics      :: ![RqTopic]
   }
   | OffsetRequest
-  { rqOfReplicaId        :: !ReplicaId
-  , rqOfNumTopics        :: !ListLength
-  , rqOfTopics           :: ![RqTopic]
+  { rqOfReplicaId :: !ReplicaId
+  , rqOfNumTopics :: !ListLength
+  , rqOfTopics    :: ![RqTopic]
   }
   | ConsumerMetadataRquest
   { rqCmConsumerGroupLen :: !StringLength
   , rqCmConsumerGroup    :: !ConsumerGroup
   }
   | OffsetCommitRequest
-  { rqOcConsumerGroupIdLen :: !StringLength
-  , rqOcConsumerGroupId  :: !ConsumerGroupId
+  { rqOcConsumerGroupIdLen        :: !StringLength
+  , rqOcConsumerGroupId           :: !ConsumerGroupId
   , rqOcConsumerGroupGenerationId :: !ConsumerGroupGenerationId
-  , rqOcConsumerId       :: !ConsumerId
-  , rqOcRetentionTime    :: !RetentionTime
-  , rqOcNumTopics        :: !ListLength
-  , rqOcTopic            :: ![RqTopic]
+  , rqOcConsumerId                :: !ConsumerId
+  , rqOcRetentionTime             :: !RetentionTime
+  , rqOcNumTopics                 :: !ListLength
+  , rqOcTopic                     :: ![RqTopic]
   }
   | OffsetFetchRequest
   { rqOftConsumerGroupLen :: !StringLength
-  , rqOftConsumerGroup   :: !ConsumerGroup
-  , rqOftNumTopics       :: !ListLength
-  , rqOftTopic           :: ![RqTopic]
+  , rqOftConsumerGroup    :: !ConsumerGroup
+  , rqOftNumTopics        :: !ListLength
+  , rqOftTopic            :: ![RqTopic]
   }
   deriving (Show, Eq)
 
@@ -188,35 +189,35 @@ data RqTopic = RqTopic
   } deriving (Show, Eq)
 
 data RqTopicName = RqTopicName
-  { rqTnNameLen         :: !StringLength
-  , rqTnName            :: !TopicName
+  { rqTnNameLen :: !StringLength
+  , rqTnName    :: !TopicName
   } deriving (Show, Eq)
 
 data Partition =
   -- | ProduceRequest (pr)
   RqPrPartition
-  { rqPrPartitionNumber  :: !PartitionNumber
-  , rqPrMessageSetSize   :: !MessageSetSize
-  , rqPrMessageSet       :: [MessageSet]
+  { rqPrPartitionNumber :: !PartitionNumber
+  , rqPrMessageSetSize  :: !MessageSetSize
+  , rqPrMessageSet      :: [MessageSet]
   }
   -- | FetchRequest (ft)
   | RqFtPartition
-  { rqFtPartitionNumber  :: !PartitionNumber
-  , rqFtFetchOffset      :: !Offset
-  , rqFtMaxBytes         :: !MaxBytes
+  { rqFtPartitionNumber :: !PartitionNumber
+  , rqFtFetchOffset     :: !Offset
+  , rqFtMaxBytes        :: !MaxBytes
   }
   -- | OffsetRequest (of)
   | RqOfPartition
-  { rqOfPartitionNumber  :: !PartitionNumber
-  , rqOfTime             :: !Time
-  , rqOfMaxNumOffset     :: !NumOffset
+  { rqOfPartitionNumber :: !PartitionNumber
+  , rqOfTime            :: !Time
+  , rqOfMaxNumOffset    :: !NumOffset
   }
   -- | OffsetCommitRequest (oc)
   | RqOcPartition
-  { rqOcPartitionNumber  :: !PartitionNumber
-  , rqOcOffset           :: !Offset
-  , rqOcMetadataLen      :: !StringLength
-  , rqOcMetadata         :: !Metadata
+  { rqOcPartitionNumber :: !PartitionNumber
+  , rqOcOffset          :: !Offset
+  , rqOcMetadataLen     :: !StringLength
+  , rqOcMetadata        :: !Metadata
   }
   -- | OffsetFetchRequest (oft)
   | RqOftPartition
@@ -242,35 +243,35 @@ type RsOftMetadata = BS.ByteString
 
 -- | Response (Rs)
 data ResponseMessage = ResponseMessage
-  { rsSize               :: Word32
-  , rsCorrelationId      :: !CorrelationId
-  , rsResponses          :: !Response
+  { rsSize          :: Word32
+  , rsCorrelationId :: !CorrelationId
+  , rsResponses     :: ![Response]
   } deriving (Show)
 
 data Response = ProduceResponse
-  { rsPrNumTopic         :: !ListLength
-  , rsPrTopic            :: ![RsTopic]
+  { rsPrNumTopic :: !ListLength
+  , rsPrTopic    :: ![RsTopic]
   }
   | MetadataResponse
-  { rsMdNumBroker        :: !ListLength
-  , rsMdBrokers          :: ![RsPayload]
-  , rsMdNumTopicMd       :: !ListLength
-  , rsMdTopicMetadata    :: ![RsPayload]
+  { rsMdNumBroker     :: !ListLength
+  , rsMdBrokers       :: ![RsPayload]
+  , rsMdNumTopicMd    :: !ListLength
+  , rsMdTopicMetadata :: ![RsPayload]
   }
   | FetchResponse
-  { rsFtNumTopic         :: !ListLength
-  , rsFtTopic            :: ![RsTopic]
+  { rsFtNumTopic :: !ListLength
+  , rsFtTopic    :: ![RsTopic]
   }
   | OffsetResponse
-  { rsOfNumTopic         :: !ListLength
-  , rsOfTopic            :: !RsTopic
+  { rsOfNumTopic :: !ListLength
+  , rsOfTopic    :: !RsTopic
   } deriving (Show)
 
 data RsTopic = RsTopic
-  { rsTopicNameLen       :: !StringLength
-  , rsTopicName          :: !TopicName
-  , rsNumPayloads        :: !ListLength
-  , rsPayloads           :: [RsPayload]
+  { rsTopicNameLen :: !StringLength
+  , rsTopicName    :: !TopicName
+  , rsNumPayloads  :: !ListLength
+  , rsPayloads     :: [RsPayload]
   }
   deriving (Show)
 
@@ -278,14 +279,14 @@ data RsTopic = RsTopic
 data RsPayload =
   -- | Produce Response (Pr)
   RsPrPayload
-  { rsPrPartitionNumber  :: !PartitionNumber
-  , rsPrCode             :: !ErrorCode
-  , rsPrOffset           :: !Offset
+  { rsPrPartitionNumber :: !PartitionNumber
+  , rsPrCode            :: !ErrorCode
+  , rsPrOffset          :: !Offset
   }
   -- | Offset Commit Response (Oc)
   | RsOcPayload
-  { rsOcPartitionNumber  :: !PartitionNumber
-  , rsOcErrorCode        :: !ErrorCode
+  { rsOcPartitionNumber :: !PartitionNumber
+  , rsOcErrorCode       :: !ErrorCode
   }
   -- | Offset Fetch Response (Oft)
   | RsOftPayload
@@ -297,41 +298,41 @@ data RsPayload =
   }
   -- | Fetch Response (Ft)
   | RsFtPayload
-  { rsFtPartitionNumber  :: !PartitionNumber
-  , rsFtErrorCode        :: !ErrorCode
-  , rsFtHwMarkOffset     :: !HightwaterMarkOffset
-  , rsFtMessageSetSize   :: !MessageSetSize
-  , rsFtMessageSets      :: [MessageSet]
+  { rsFtPartitionNumber :: !PartitionNumber
+  , rsFtErrorCode       :: !ErrorCode
+  , rsFtHwMarkOffset    :: !HightwaterMarkOffset
+  , rsFtMessageSetSize  :: !MessageSetSize
+  , rsFtMessageSets     :: [MessageSet]
   }
   -- | Metadata Response (Mt)
   | RsMdPayloadBroker
-  { rsMdNodeId           :: !RsNodeId
-  , rsMdHostLen          :: !StringLength
-  , rsMdHost             :: !RsMdHost
-  , rsMdPort             :: !RsMdPort
+  { rsMdNodeId  :: !RsNodeId
+  , rsMdHostLen :: !StringLength
+  , rsMdHost    :: !RsMdHost
+  , rsMdPort    :: !RsMdPort
   }
   -- | Metadata Response (Of)
   | RsMdPayloadTopic
-  { rsMdTopicErrorCode   :: !ErrorCode
-  , rsMdTopicNameLen     :: !StringLength
-  , rsMdTopicName        :: !TopicName
-  , rsMdNumPartitionMd   :: !ListLength
-  , rsMdPartitionMd      :: [RsMdPartitionMetadata]
+  { rsMdTopicErrorCode :: !ErrorCode
+  , rsMdTopicNameLen   :: !StringLength
+  , rsMdTopicName      :: !TopicName
+  , rsMdNumPartitionMd :: !ListLength
+  , rsMdPartitionMd    :: [RsMdPartitionMetadata]
   }
   -- | Offset Response (Of)
   | RsOfPayload
-  { rsOfPartitionNumber  :: !PartitionNumber
-  , rsOfErrorCode        :: !ErrorCode64
-  , rsOfNumOffsets       :: !ListLength
-  , rsOfOffsets          :: [Offset]
+  { rsOfPartitionNumber :: !PartitionNumber
+  , rsOfErrorCode       :: !ErrorCode64
+  , rsOfNumOffsets      :: !ListLength
+  , rsOfOffsets         :: [Offset]
   } deriving (Show)
 
 data RsMdPartitionMetadata = RsMdPartitionMetadata
   { rsMdPartitionErrorCode :: !ErrorCode
-  , rsMdPartitionId      :: !PartitionNumber
-  , rsMdLeader           :: !RsNodeId
-  , rsMdNumReplicas      :: !ListLength
-  , rsMdReplicas         :: [RsNodeId]
-  , rsMdNumIsrs          :: !ListLength
-  , rsMdIsrs             :: [RsNodeId]
+  , rsMdPartitionId        :: !PartitionNumber
+  , rsMdLeader             :: !RsNodeId
+  , rsMdNumReplicas        :: !ListLength
+  , rsMdReplicas           :: [RsNodeId]
+  , rsMdNumIsrs            :: !ListLength
+  , rsMdIsrs               :: [RsNodeId]
   } deriving (Show)

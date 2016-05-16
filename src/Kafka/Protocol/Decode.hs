@@ -19,12 +19,12 @@ module Kafka.Protocol.Decode
     , metadataResponseMessageParser
     ) where
 
-import Kafka.Protocol.Types
-import Data.Binary.Get
-import Data.Binary.Put
-import qualified Data.ByteString.Lazy as BL
-import Kafka.Protocol.Encode
-import qualified Data.ByteString as BS
+import           Data.Binary.Get
+import           Data.Binary.Put
+import qualified Data.ByteString       as BS
+import qualified Data.ByteString.Lazy  as BL
+import           Kafka.Protocol.Encode
+import           Kafka.Protocol.Types
 
 
 -------------------------------------------------------------------------------
@@ -288,4 +288,3 @@ metadataResponseMessageParser = do
   correlationId <- getWord32be
   response      <- metadataResponseParser
   return $! ResponseMessage size correlationId response
-

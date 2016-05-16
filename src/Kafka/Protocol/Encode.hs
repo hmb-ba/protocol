@@ -10,251 +10,253 @@ Portability :  portable
 This module exposes Encode functionalities for kafka protocol implementation.
 -}
 module Kafka.Protocol.Encode
-    ( buildMessageSet
-    , buildMessage
-    , buildPayload
+    () where
 
-    , buildRqMessage
-    , buildMessageSets
-    , buildProduceRequest
-    , buildFetchRequest
-    , buildMetadataRequest
-
-    , buildPrResponseMessage
-    , buildFtRsMessage
-    , buildMdRsMessage
-
-    , buildProduceResponse
-    , buildMdRs
-    ) where
-
-import qualified Data.ByteString.Lazy as BL
-import Data.Binary.Put
-import Kafka.Protocol.Types
-import Data.Digest.CRC32
+import           Data.Binary
+import           Data.Binary.Put
+import           Data.Binary.Get
+import qualified Data.ByteString.Lazy           as BL
+import           Data.Digest.CRC32
+import           Kafka.Protocol.Types
 import qualified Network.Socket.ByteString.Lazy as SBL
-
--------------------------------------------------------------------------------
--- | Common
--------------------------------------------------------------------------------
-
--- | Generic list building that takes a builder function and a list
-buildList :: (a -> Put) -> [a] -> Put
-buildList builder [] = putLazyByteString BL.empty
-buildList builder [x] = builder x
-buildList builder (x:xs) = do
-  builder x
-  buildList builder xs
 
 
 -------------------------------------------------------------------------------
 -- | Data
 -------------------------------------------------------------------------------
 
-buildMessageSets :: [MessageSet] -> Put
-buildMessageSets [] = putLazyByteString BL.empty
-buildMessageSets [x] = buildMessageSet x
-buildMessageSets (x:xs) = do
-  buildMessageSet x
-  buildMessageSets xs
+instance Binary MessageSet where
+  put e = do
+    putWord64be $ msOffset e
+    putWord32be $ msLen e
+    put         $ msMessage e
 
-buildMessageSet :: MessageSet -> Put
-buildMessageSet e = do
-  putWord64be $      msOffset e
-  putWord32be $      msLen e
-  buildMessage $     msMessage e
+  get = do
+    offset  <- getWord64be
+    len     <- getWord32be
+    message <- get :: Get Message
+    return $! MessageSet { msOffset = offset, msLen = len, msMessage = message }
 
-buildMessage :: Message -> Put
-buildMessage e = do
-  putWord32be $      mgCrc e
-  buildPayload $     mgPayload e
+instance Binary Message where
+  put e = do
+    putWord32be $ mgCrc e
+    put         $ mgPayload e
 
-buildPayload :: Payload -> Put
-buildPayload e = do
-  putWord8    $      plMagic e
-  putWord8    $      plAttr e
-  putWord32be $      plKey e
-  putWord32be $      plValueLen $ e
-  putByteString $    plValue $ e
+  get = do
+    crc <- getWord32be
+    p   <- get :: Get Payload
+    return $! Message { mgCrc = crc, mgPayload = p }
+
+instance Binary Payload where
+  put e = do
+    putWord8      $      plMagic e
+    putWord8      $      plAttr e
+    putWord32be   $      plKey e
+    putWord32be   $      plValueLen e
+    putByteString $    plValue e
+
+  get = do
+    magic   <- getWord8
+    attr    <- getWord8
+    key     <- getWord32be
+    paylen  <- getWord32be
+    payload <- getByteString $ fromIntegral paylen
+    return $! Payload { plMagic    = magic
+                      , plAttr     = attr
+                      , plKey      = key
+                      , plValueLen = paylen
+                      , plValue    = payload }
 
 
 -------------------------------------------------------------------------------
 -- | Request
 -------------------------------------------------------------------------------
 
-buildRqMessage :: RequestMessage -> Put
-buildRqMessage e = do
-  putWord32be $      rqSize e
-  putWord16be $      rqApiKey e
-  putWord16be $      rqApiVersion e
-  putWord32be $      rqCorrelationId e
-  putWord16be $      rqClientIdLen e
-  putByteString $    rqClientId e
-  case (fromIntegral $ rqApiKey e) of
-    0 -> buildProduceRequest  $ rqRequest e
-    1 -> buildFetchRequest    $ rqRequest e
-    3 -> buildMetadataRequest $ rqRequest e
-    -- TODO: further API Codes
+instance Binary RequestMessage where
+  put e = do
+    putWord32be   $ rqSize e
+    putWord16be   $ rqApiKey e
+    putWord16be   $ rqApiVersion e
+    putWord32be   $ rqCorrelationId e
+    putWord16be   $ rqClientIdLen e
+    putByteString $ rqClientId e
+    put           $ rqRequest e
 
-buildTopic :: (Partition -> Put) -> RqTopic -> Put
-buildTopic pb t = do
-  putWord16be $      rqToNameLen t
-  putByteString $    rqToName t
-  putWord32be $      rqToNumPartitions t
-  buildList pb $     rqToPartitions t
+  get = do
+    size   <- getWord32be
+    apiK   <- getWord16be
+    apiV   <- getWord16be
+    corrId <- getWord32be
+    cIdLen <- getWord16be
+    cId    <- getByteString $ fromIntegral cIdLen
+    rq     <- case apiK of
+      -- TODO: I truely wanna use Binary type class definitions in the way
+      -- such that return type overloading is being used as follows:
+      -- 1 -> get :: Get FetchRequest
+      -- 2- > get :: Get MetadataRequest
+      -- ...
+      0 -> produceRequestParser
+      1 -> fetchRequestParser
+      3 -> metadataRequestParser
+      -- FIXME (SM): the missing default-case will make this function fail hard
+      -- instead of resutling in a parse failure with an informative error
+      -- message.
+    return RequestMessage { rqSize          = size
+                          , rqApiKey        = apiK
+                          , rqApiVersion    = apiV
+                          , rqCorrelationId = corrId
+                          , rqClientIdLen   = cIdLen
+                          , rqClientId      = cId
+                          , rqRequest       = rq }
 
-buildRqTopicName :: RqTopicName -> Put
-buildRqTopicName e = do
-  putWord16be $      rqTnNameLen e
-  putByteString $    rqTnName e
 
--- | Produce Request
-buildRqPrPartition :: Partition -> Put
-buildRqPrPartition e = do
-  putWord32be $      rqPrPartitionNumber e
-  putWord32be $      rqPrMessageSetSize e
-  buildMessageSets $ rqPrMessageSet e
+instance Binary RqTopic where
+  put t = do
+    putWord16be $      rqToNameLen t
+    putByteString $    rqToName t
+    putWord32be $      rqToNumPartitions t
+    mapM_ put $ rqToPartitions t
 
-buildProduceRequest :: Request -> Put
-buildProduceRequest e = do
-  putWord16be $      rqPrRequiredAcks e
-  putWord32be $      rqPrTimeout e
-  putWord32be $      rqPrNumTopics e
-  buildList (buildTopic buildRqPrPartition) $ rqPrTopics e
+  get = undefined
 
--- | Fetch Request
-buildRqFtPartition :: Partition -> Put
-buildRqFtPartition p = do
-  putWord32be $      rqFtPartitionNumber p
-  putWord64be $      rqFtFetchOffset p
-  putWord32be $      rqFtMaxBytes p
 
-buildFetchRequest :: Request -> Put
-buildFetchRequest e = do
-  putWord32be $      rqFtReplicaId e
-  putWord32be $      rqFtMaxWaitTime e
-  putWord32be $      rqFtMinBytes e
-  putWord32be $      rqFtNumTopics e
-  buildList (buildTopic buildRqFtPartition) $ rqFtTopics e
+instance Binary RqTopicName where
+  put e = do
+    putWord16be $      rqTnNameLen e
+    putByteString $    rqTnName e
 
--- | Metadata Request
-buildMetadataRequest :: Request -> Put
-buildMetadataRequest e = do
-  putWord32be $      rqMdNumTopics e
-  buildList buildRqTopicName $ rqMdTopicNames e
+  get = do
+    topicNameLen  <- getWord16be
+    topicName     <- getByteString $ fromIntegral topicNameLen
+    return $ RqTopicName topicNameLen topicName
 
--- | Offset Request
-buildRqOfPartition :: Partition -> Put
-buildRqOfPartition e = do
-  putWord32be $      rqOfPartitionNumber e
-  putWord64be $      rqOfTime e
-  putWord32be $      rqOfMaxNumOffset e
 
-buildOffsetRequest :: Request -> Put
-buildOffsetRequest e = do
-  putWord32be $      rqOfReplicaId e
-  putWord32be $      rqOfNumTopics e
-  buildList (buildTopic buildRqOfPartition) $ rqOfTopics e
+instance Binary Partition where
+  put e@RqPrPartition{} = do
+    putWord32be $      rqPrPartitionNumber e
+    putWord32be $      rqPrMessageSetSize e
+    mapM_ put $ rqPrMessageSet e
+  put p@RqFtPartition{} = do
+    putWord32be $      rqFtPartitionNumber p
+    putWord64be $      rqFtFetchOffset p
+    putWord32be $      rqFtMaxBytes p
+  put e@RqOfPartition{} = do
+    putWord32be $      rqOfPartitionNumber e
+    putWord64be $      rqOfTime e
+    putWord32be $      rqOfMaxNumOffset e
 
+  get = undefined
+
+
+instance Binary Request where
+  put e@ProduceRequest{} = do
+    putWord16be $      rqPrRequiredAcks e
+    putWord32be $      rqPrTimeout e
+    putWord32be $      rqPrNumTopics e
+    mapM_ put $ rqPrTopics e
+  put e@FetchRequest{} = do
+    putWord32be $      rqFtReplicaId e
+    putWord32be $      rqFtMaxWaitTime e
+    putWord32be $      rqFtMinBytes e
+    putWord32be $      rqFtNumTopics e
+    mapM_ put $ rqPrTopics e
+  put e@MetadataRequest{} = do
+    putWord32be $      rqMdNumTopics e
+    mapM_ put $ rqPrTopics e
+  put e@OffsetRequest{} = do
+    putWord32be $      rqOfReplicaId e
+    putWord32be $      rqOfNumTopics e
+    mapM_ put $ rqPrTopics e
+
+  get = undefined
 
 -------------------------------------------------------------------------------
 -- Response
 -------------------------------------------------------------------------------
 
-buildRsMessage :: (Response -> Put) -> ResponseMessage -> Put
-buildRsMessage rsBuilder rm = do
-  putWord32be $      rsSize rm 
-  putWord32be $      rsCorrelationId rm
-  rsBuilder $        rsResponses rm
+instance Binary ResponseMessage where
+  put rm = do
+    putWord32be $      rsSize rm
+    putWord32be $      rsCorrelationId rm
+    mapM_ put $ rsResponses rm
 
-buildRsTopic :: (RsPayload -> Put) -> RsTopic -> Put
-buildRsTopic b t = do
-  putWord16be $      rsTopicNameLen t
-  putByteString $    rsTopicName t
-  putWord32be $      rsNumPayloads t
-  buildList b $ rsPayloads t
+  get = undefined
 
--- | Produce Response (Pr)
-buildRsPrPayload :: RsPayload -> Put
-buildRsPrPayload e = do
-  putWord32be $      rsPrPartitionNumber e
-  putWord16be $      rsPrCode e
-  putWord64be $      rsPrOffset e
+instance Binary RsTopic where
+  put t = do
+    putWord16be $      rsTopicNameLen t
+    putByteString $    rsTopicName t
+    putWord32be $      rsNumPayloads t
+    mapM_ put $ rsPayloads t
 
-buildProduceResponse :: Response -> Put
-buildProduceResponse rs = do
-  putWord32be $      rsPrNumTopic rs
-  buildList (buildRsTopic buildRsPrPayload) $ rsPrTopic rs
+  get = undefined
 
-buildPrResponseMessage :: ResponseMessage -> Put
-buildPrResponseMessage rm = buildRsMessage buildProduceResponse rm
+instance Binary RsPayload where
+  put e@RsPrPayload{} = do
+    putWord32be $      rsPrPartitionNumber e
+    putWord16be $      rsPrCode e
+    putWord64be $      rsPrOffset e
 
--- | Fetch Response (Ft)
-buildRsFtPayload :: RsPayload -> Put
-buildRsFtPayload p =do
-  putWord32be $      rsFtPartitionNumber p
-  putWord16be $      rsFtErrorCode p
-  putWord64be $      rsFtHwMarkOffset p
-  putWord32be $      rsFtMessageSetSize p
-  buildMessageSets $ rsFtMessageSets p
+  put p@RsFtPayload{} = do
+    putWord32be $      rsFtPartitionNumber p
+    putWord16be $      rsFtErrorCode p
+    putWord64be $      rsFtHwMarkOffset p
+    putWord32be $      rsFtMessageSetSize p
+    mapM_ put $ rsFtMessageSets p
 
-buildFtRs :: Response -> Put
-buildFtRs rs = do
-  putWord32be   $ rsFtNumTopic rs
-  buildList (buildRsTopic buildRsFtPayload) $ rsFtTopic rs
+  put t@RsMdPayloadTopic{} = do
+    putWord16be $      rsMdTopicErrorCode t
+    putWord16be $      rsMdTopicNameLen t
+    putLazyByteString $ BL.fromStrict $ rsMdTopicName t
+    putWord32be $      rsMdNumPartitionMd t
+    mapM_ put $ rsMdPartitionMd t
 
-buildFtRsMessage :: ResponseMessage -> Put
-buildFtRsMessage rm = buildRsMessage buildFtRs rm
+  put p@RsMdPayloadBroker{} = do
+    putWord32be $      rsMdNodeId p
+    putWord16be $      rsMdHostLen p
+    putLazyByteString $ BL.fromStrict(rsMdHost p)
+    putWord32be $      rsMdPort p
 
--- | Offset Response (Of)
-buildRsOfPayload :: RsPayload -> Put
-buildRsOfPayload p = do
-  putWord32be $      rsOfPartitionNumber p
-  putWord64be $      rsOfErrorCode p
-  putWord32be $      rsOfNumOffsets p
-  buildList (putWord64be) $ rsOfOffsets p
+  put p@RsOfPayload{} = do
+    putWord32be $      rsOfPartitionNumber p
+    putWord64be $      rsOfErrorCode p
+    putWord32be $      rsOfNumOffsets p
+    mapM_ putWord64be $ rsOfOffsets p
 
-buildOfRs :: Response -> Put
-buildOfRs rs = do
-  putWord32be $      rsOfNumTopic rs
-  buildList (buildRsTopic buildRsOfPayload) $ rsFtTopic rs
 
-buildOfRsMessage :: ResponseMessage -> Put
-buildOfRsMessage rm = buildRsMessage buildOfRs rm
+
+  get = undefined
+
+
+
+instance Binary Response where
+  put rs@ProduceResponse{} = do
+    putWord32be $      rsPrNumTopic rs
+    mapM_ put $ rsPrTopic rs
+  put rs@FetchResponse{} = do
+    putWord32be   $ rsFtNumTopic rs
+    mapM_ put $ rsFtTopic rs
+  put rs@OffsetResponse{} = do
+    putWord32be $      rsOfNumTopic rs
+    mapM_ put $ rsFtTopic rs
+  put rs@MetadataResponse{} = do
+    putWord32be $      rsMdNumBroker rs
+    mapM_ put $ rsMdBrokers rs
+    putWord32be $      rsMdNumTopicMd rs
+    mapM_ put $ rsMdTopicMetadata rs
+
+  get = undefined
+
 
 -- | Metadata Response (Md)
-buildRsMdPartitionMetadata :: RsMdPartitionMetadata -> Put
-buildRsMdPartitionMetadata p = do
-  putWord16be $      rsMdPartitionErrorCode p
-  putWord32be $      rsMdPartitionId p
-  putWord32be $      rsMdLeader p
-  putWord32be $      rsMdNumReplicas p
-  buildList (putWord32be) $ rsMdReplicas p
-  putWord32be  $     rsMdNumIsrs p
-  buildList (putWord32be) $ rsMdIsrs p
+instance Binary RsMdPartitionMetadata where
+  put p = do
+    putWord16be $      rsMdPartitionErrorCode p
+    putWord32be $      rsMdPartitionId p
+    putWord32be $      rsMdLeader p
+    putWord32be $      rsMdNumReplicas p
+    mapM_ putWord32be $ rsMdReplicas p
+    putWord32be  $     rsMdNumIsrs p
+    mapM_ putWord32be $ rsMdIsrs p
 
-buildRsMdPayloadTopic :: RsPayload -> Put
-buildRsMdPayloadTopic t = do
-  putWord16be $      rsMdTopicErrorCode t
-  putWord16be $      rsMdTopicNameLen t
-  putLazyByteString $ BL.fromStrict $ rsMdTopicName t
-  putWord32be $      rsMdNumPartitionMd t
-  buildList buildRsMdPartitionMetadata $ rsMdPartitionMd t
-
-buildRsMdPayloadBroker :: RsPayload -> Put
-buildRsMdPayloadBroker p = do
-  putWord32be $      rsMdNodeId p
-  putWord16be $      rsMdHostLen p
-  putLazyByteString $ BL.fromStrict(rsMdHost p)
-  putWord32be $      rsMdPort p
-
-buildMdRs rs = do
-  putWord32be $      rsMdNumBroker rs
-  buildList buildRsMdPayloadBroker $ rsMdBrokers rs
-  putWord32be $      rsMdNumTopicMd rs
-  buildList buildRsMdPayloadTopic $ rsMdTopicMetadata rs
-
-buildMdRsMessage :: ResponseMessage -> Put
-buildMdRsMessage rm = buildRsMessage buildMdRs rm
-
-
+  get = undefined
